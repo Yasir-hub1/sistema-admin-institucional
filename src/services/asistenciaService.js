@@ -160,22 +160,31 @@ export const asistenciaService = {
    */
   async getAsistencias(params = {}) {
     try {
+      // Construir queryParams solo con valores no vacíos
       const queryParams = {
         page: params.page || 1,
         per_page: params.per_page || PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
-        search: params.search || '',
         sort_by: params.sort_by || 'fecha',
-        sort_direction: params.sort_direction || 'desc',
-        gestion_id: params.gestion_id || '',
-        docente_id: params.docente_id || '',
-        grupo_id: params.grupo_id || '',
-        materia_id: params.materia_id || '',
-        fecha_inicio: params.fecha_inicio || '',
-        fecha_fin: params.fecha_fin || '',
-        estado: params.estado || ''
+        sort_direction: params.sort_direction || 'desc'
       }
 
+      // Solo agregar parámetros con valores
+      if (params.search) queryParams.search = params.search
+      if (params.gestion_id) queryParams.gestion_id = params.gestion_id
+      if (params.docente_id) queryParams.docente_id = params.docente_id
+      if (params.grupo_id) queryParams.grupo_id = params.grupo_id
+      if (params.materia_id) queryParams.materia_id = params.materia_id
+      if (params.fecha_inicio) queryParams.fecha_inicio = params.fecha_inicio
+      if (params.fecha_fin) queryParams.fecha_fin = params.fecha_fin
+      if (params.estado) queryParams.estado = params.estado
+
+      console.log('📤 getAsistencias - Enviando params:', queryParams)
+
       const response = await get('/asistencias', queryParams)
+      
+      console.log('📥 getAsistencias - Respuesta:', response)
+      console.log('📥 getAsistencias - response.data:', response.data)
+      console.log('📥 getAsistencias - response.data.data:', response.data.data)
       
       if (response.data.success) {
         return {
@@ -190,9 +199,10 @@ export const asistenciaService = {
         }
       }
     } catch (error) {
+      console.error('❌ getAsistencias - Error:', error)
       return {
         success: false,
-        message: error.message || 'Error al obtener asistencias'
+        message: error.response?.data?.message || error.message || 'Error al obtener asistencias'
       }
     }
   },

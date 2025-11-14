@@ -89,12 +89,26 @@ const Horarios = () => {
         params.dia_semana = filtrosAvanzados.dia_semana
       }
 
+      console.log('📊 Horarios - Params enviados:', params)
+      
       const response = await horarioService.getHorarios(params)
       
+      console.log('📊 Horarios - Response completa:', response)
+      console.log('📊 Horarios - response.success:', response.success)
+      console.log('📊 Horarios - response.data:', response.data)
+      
       if (response.success && response.data) {
-        setHorarios(response.data.data || [])
+        // Verificar estructura de datos
+        const horariosArray = Array.isArray(response.data.data) ? response.data.data : 
+                             Array.isArray(response.data) ? response.data : []
+        
+        console.log('✅ Horarios - Array extraído:', horariosArray)
+        console.log('✅ Horarios - Total horarios:', horariosArray.length)
+        
+        setHorarios(horariosArray)
         setTotalPages(response.data.last_page || 1)
       } else {
+        console.error('❌ Horarios - Response sin éxito:', response)
         toast.error(response.message || 'Error al cargar horarios')
         setHorarios([])
         setTotalPages(1)
@@ -102,7 +116,7 @@ const Horarios = () => {
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Error de conexión: No se pudo cargar los horarios'
       toast.error(errorMessage)
-      console.error('Error al cargar horarios:', error)
+      console.error('❌ Horarios - Error al cargar:', error)
       setHorarios([])
       setTotalPages(1)
     } finally {
@@ -299,13 +313,29 @@ const Horarios = () => {
 
   const handleEdit = (horario) => {
     setEditingHorario(horario)
+    
+    // Formatear horas para el input type="time" (HH:mm)
+    const formatearHora = (hora) => {
+      if (!hora) return ''
+      // Si viene en formato ISO completo, extraer solo la hora
+      if (hora.includes('T')) {
+        const date = new Date(hora)
+        return date.toTimeString().slice(0, 5) // HH:mm
+      }
+      // Si ya viene en formato HH:mm:ss, tomar solo HH:mm
+      if (hora.length > 5) {
+        return hora.slice(0, 5)
+      }
+      return hora
+    }
+    
     reset({
-      grupo_id: horario.grupo_id || horario.grupo?.id,
-      docente_id: horario.docente_id || horario.docente?.id,
-      aula_id: horario.aula_id || horario.aula?.id,
-      dia_semana: horario.dia_semana || horario.dia,
-      hora_inicio: horario.hora_inicio,
-      hora_fin: horario.hora_fin
+      grupo_id: horario.grupo_id || horario.grupo?.id || '',
+      docente_id: horario.docente_id || horario.docente?.id || horario.docente_obj?.id || '',
+      aula_id: horario.aula_id || horario.aula?.id || horario.aula_obj?.id || '',
+      dia_semana: horario.dia_semana || (typeof horario.dia === 'number' ? horario.dia : diaToNumero(horario.dia)) || '',
+      hora_inicio: formatearHora(horario.hora_inicio),
+      hora_fin: formatearHora(horario.hora_fin)
     })
     setShowModal(true)
   }
@@ -462,7 +492,14 @@ const Horarios = () => {
   const handleCloseModal = () => {
     setShowModal(false)
     setEditingHorario(null)
-    reset()
+    reset({
+      grupo_id: '',
+      docente_id: '',
+      aula_id: '',
+      dia_semana: '',
+      hora_inicio: '',
+      hora_fin: ''
+    })
   }
 
   const [gestiones, setGestiones] = useState([])
@@ -500,9 +537,14 @@ const Horarios = () => {
 
     try {
       setGenerandoAutomatico(true)
+      
+      console.log('🚀 Horarios - Generando automático con gestion_id:', gestionSeleccionada)
+      
       const result = await horarioService.generarAutomatico({
         gestion_id: parseInt(gestionSeleccionada)
       })
+      
+      console.log('📊 Horarios - Resultado generación automática:', result)
 
       if (result.success) {
         const mensaje = result.data?.horarios_generados > 0
@@ -519,10 +561,12 @@ const Horarios = () => {
         
         await fetchHorarios()
       } else {
+        // Mostrar el mensaje de error del backend
+        console.warn('⚠️ Horarios - Error en generación:', result.message)
         toast.error(result.message || 'Error al generar horarios')
       }
     } catch (error) {
-      console.error('Error al generar horarios automáticamente:', error)
+      console.error('❌ Horarios - Error al generar horarios automáticamente:', error)
       const errorMessage = error.response?.data?.message || error.message || 'Error al generar horarios automáticamente'
       toast.error(errorMessage)
     } finally {
@@ -547,7 +591,18 @@ const Horarios = () => {
           <Button
             variant="primary"
             icon={<Plus className="h-5 w-5" />}
-            onClick={() => setShowModal(true)}
+            onClick={() => {
+              setEditingHorario(null)
+              reset({
+                grupo_id: '',
+                docente_id: '',
+                aula_id: '',
+                dia_semana: '',
+                hora_inicio: '',
+                hora_fin: ''
+              })
+              setShowModal(true)
+            }}
           >
             Nuevo Horario
           </Button>

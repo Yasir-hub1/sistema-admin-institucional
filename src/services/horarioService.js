@@ -39,7 +39,14 @@ export const horarioService = {
         estado: params.estado || ''
       }
 
+      console.log('🔍 horarioService.getHorarios - Query params:', queryParams)
+      
       const response = await get('/horarios', queryParams)
+      
+      console.log('🔍 horarioService.getHorarios - Response completa:', response)
+      console.log('🔍 horarioService.getHorarios - response.data:', response.data)
+      console.log('🔍 horarioService.getHorarios - response.data.success:', response.data?.success)
+      console.log('🔍 horarioService.getHorarios - response.data.data:', response.data?.data)
       
       if (response.data.success) {
         return {
@@ -54,9 +61,10 @@ export const horarioService = {
         }
       }
     } catch (error) {
+      console.error('❌ horarioService.getHorarios - Error:', error)
       return {
         success: false,
-        message: error.message || 'Error al obtener horarios'
+        message: error.response?.data?.message || error.message || 'Error al obtener horarios'
       }
     }
   },
@@ -516,6 +524,8 @@ export const horarioService = {
     try {
       const response = await post('/horarios/generar-automatico', params)
       
+      console.log('🔄 horarioService.generarAutomatico - Response:', response)
+      
       if (response.data.success) {
         return {
           success: true,
@@ -523,15 +533,21 @@ export const horarioService = {
           message: response.data.message || 'Horarios generados exitosamente'
         }
       } else {
+        // Cuando success es false, devolver el mensaje del backend
         return {
           success: false,
-          message: response.data.message || 'Error al generar horarios automáticamente'
+          message: response.data.message || 'Error al generar horarios',
+          data: response.data.data || null
         }
       }
     } catch (error) {
+      console.error('❌ horarioService.generarAutomatico - Error:', error)
+      // Capturar errores de la respuesta HTTP
+      const errorMessage = error.response?.data?.message || error.message || 'Error al generar horarios automáticamente'
       return {
         success: false,
-        message: error.message || 'Error al generar horarios automáticamente'
+        message: errorMessage,
+        error: error.response?.data
       }
     }
   }

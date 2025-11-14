@@ -118,7 +118,19 @@ const Grupos = () => {
     try {
       const response = await gestionAcademicaService.getGestiones({ per_page: 100 })
       if (response.success) {
-        setGestiones(response.data?.data || [])
+        const gestionesData = response.data?.data || []
+        // Normalizar campo activa y ordenar (activa primero)
+        const gestionesNormalizadas = gestionesData.map(g => ({
+          ...g,
+          activa: Boolean(g.activa === true || g.activa === 1 || g.activa === '1' || g.activa === 'true')
+        })).sort((a, b) => {
+          // Gestión activa primero
+          if (a.activa && !b.activa) return -1
+          if (!a.activa && b.activa) return 1
+          // Luego por año descendente
+          return (b.año || b.anio) - (a.año || a.anio)
+        })
+        setGestiones(gestionesNormalizadas)
       }
     } catch (error) {
       console.error('Error al cargar gestiones:', error)
@@ -232,10 +244,23 @@ const Grupos = () => {
   const handleEdit = (grupo) => {
     setEditingGrupo(grupo)
     reset({
-      materia_id: grupo.materia_id || grupo.materia?.id,
-      gestion_id: grupo.gestion_id || grupo.gestion?.id,
-      numero_grupo: grupo.numero_grupo,
-      cupo_maximo: grupo.cupo_maximo
+      materia_id: grupo.materia_id || grupo.materia?.id || '',
+      gestion_id: grupo.gestion_id || grupo.gestion?.id || '',
+      numero_grupo: grupo.numero_grupo || '',
+      cupo_maximo: grupo.cupo_maximo || 30
+    })
+    setShowModal(true)
+  }
+  
+  const handleCreate = () => {
+    setEditingGrupo(null)
+    // Pre-seleccionar la gestión activa si existe
+    const gestionActiva = gestiones.find(g => g.activa)
+    reset({
+      materia_id: '',
+      gestion_id: gestionActiva?.id || '',
+      numero_grupo: '',
+      cupo_maximo: 30
     })
     setShowModal(true)
   }
@@ -366,6 +391,13 @@ const Grupos = () => {
     try {
       setLoading(true)
       
+      // Validar que los IDs sean válidos
+      if (!data.materia_id || !data.gestion_id) {
+        toast.error('Debe seleccionar una materia y una gestión académica')
+        setLoading(false)
+        return
+      }
+      
       // Preparar datos para el backend
       const datosBackend = {
         materia_id: parseInt(data.materia_id),
@@ -373,6 +405,8 @@ const Grupos = () => {
         numero_grupo: parseInt(data.numero_grupo),
         cupo_maximo: parseInt(data.cupo_maximo)
       }
+      
+      console.log('📋 Grupos - Datos a enviar:', datosBackend)
 
       let response
       
@@ -382,18 +416,21 @@ const Grupos = () => {
         response = await grupoService.createGrupo(datosBackend)
       }
       
+      console.log('📋 Grupos - Response:', response)
+      
       if (response.success) {
         toast.success(response.message || (editingGrupo ? 'Grupo actualizado exitosamente' : 'Grupo creado exitosamente'))
-      setShowModal(false)
-      setEditingGrupo(null)
-      reset()
+        setShowModal(false)
+        setEditingGrupo(null)
+        reset()
         await fetchGrupos()
       } else {
         toast.error(response.message || 'Error al guardar grupo')
         if (response.errors) {
           console.error('Errores de validación:', response.errors)
           Object.keys(response.errors).forEach(key => {
-            toast.error(`${key}: ${response.errors[key]}`)
+            const errorMsg = Array.isArray(response.errors[key]) ? response.errors[key].join(', ') : response.errors[key]
+            toast.error(`${key}: ${errorMsg}`)
           })
         }
       }
@@ -403,7 +440,10 @@ const Grupos = () => {
       console.error('Error al guardar grupo:', error)
       if (error.response?.data?.errors) {
         Object.keys(error.response.data.errors).forEach(key => {
-          toast.error(`${key}: ${error.response.data.errors[key]}`)
+          const errorMsg = Array.isArray(error.response.data.errors[key]) 
+            ? error.response.data.errors[key].join(', ') 
+            : error.response.data.errors[key]
+          toast.error(`${key}: ${errorMsg}`)
         })
       }
     } finally {
@@ -433,7 +473,7 @@ const Grupos = () => {
         <Button
           variant="primary"
           icon={<Plus className="h-5 w-5" />}
-          onClick={() => setShowModal(true)}
+          onClick={handleCreate}
         >
           Nuevo Grupo
         </Button>
@@ -556,7 +596,7 @@ const Grupos = () => {
                   <option value="">Todas</option>
                   {gestiones.map(gestion => (
                     <option key={gestion.id} value={gestion.id}>
-                      {gestion.nombre} ({gestion.año})
+                      {gestion.nombre || `${gestion.año || gestion.anio} - P${gestion.periodo}`} {gestion.activa ? '✓' : ''}
                     </option>
                   ))}
                 </select>
@@ -659,10 +699,10 @@ const Grupos = () => {
                 {...register('gestion_id', { required: 'La gestión académica es obligatoria' })}
                 className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary-500"
               >
-                <option value="">Seleccionar gestión...</option>
+                  <option value="">Seleccionar gestión...</option>
                 {gestiones.map(g => (
                   <option key={g.id} value={g.id}>
-                    {g.anio} - {g.periodo} {g.activa ? '(Activa)' : ''}
+                    {g.nombre || `${g.año || g.anio} - Periodo ${g.periodo}`} {g.activa ? '✓ ACTIVA' : ''}
                   </option>
                 ))}
               </select>

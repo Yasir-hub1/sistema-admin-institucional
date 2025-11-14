@@ -11,16 +11,29 @@ export const gestionAcademicaService = {
    */
   async getGestiones(params = {}) {
     try {
+      // Construir queryParams solo con valores no vacíos
       const queryParams = {
         page: params.page || 1,
         per_page: params.per_page || PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
-        search: params.search || '',
         sort_by: params.sort_by || 'año',
-        sort_order: params.sort_order || 'desc',
-        año: params.año || '',
-        periodo: params.periodo || '',
-        activa: params.activa || ''
+        sort_order: params.sort_order || 'desc'
       }
+      
+      // Solo agregar parámetros si tienen valor
+      if (params.search) {
+        queryParams.search = params.search
+      }
+      if (params.año) {
+        queryParams.año = params.año
+      }
+      if (params.periodo) {
+        queryParams.periodo = params.periodo
+      }
+      if (params.activa !== undefined && params.activa !== '') {
+        queryParams.activa = params.activa
+      }
+      
+      console.log('🔍 gestionAcademicaService.getGestiones - Query params construidos:', queryParams)
 
       const response = await get('/gestiones-academicas', queryParams)
       
@@ -221,7 +234,7 @@ export const gestionAcademicaService = {
         return {
           success: true,
           data: response.data.data,
-          message: 'Gestión académica activada exitosamente'
+          message: response.data.message || 'Gestión académica activada exitosamente'
         }
       } else {
         return {
@@ -232,7 +245,36 @@ export const gestionAcademicaService = {
     } catch (error) {
       return {
         success: false,
-        message: error.message || 'Error al activar la gestión académica'
+        message: error.response?.data?.message || error.message || 'Error al activar la gestión académica'
+      }
+    }
+  },
+
+  /**
+   * Cambiar el estado de una gestión académica (toggle activa/inactiva)
+   * @param {number} id - ID de la gestión académica
+   * @returns {Promise<object>} Gestión académica con estado actualizado
+   */
+  async toggleEstado(id) {
+    try {
+      const response = await put(`/gestiones-academicas/${id}/toggle-estado`)
+      
+      if (response.data.success) {
+        return {
+          success: true,
+          data: response.data.data,
+          message: response.data.message || 'Estado de gestión académica actualizado exitosamente'
+        }
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Error al cambiar el estado de la gestión académica'
+        }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Error al cambiar el estado de la gestión académica'
       }
     }
   },

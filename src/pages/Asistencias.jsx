@@ -73,25 +73,40 @@ const Asistencias = () => {
   const fetchAsistencias = async () => {
     try {
       setLoading(true)
+      console.log('📤 Fetching asistencias con params:', {
+        page: currentPage,
+        per_page: perPage,
+        search: searchTerm
+      })
+      
       const response = await asistenciaService.getAsistencias({
         page: currentPage,
         per_page: perPage,
         search: searchTerm
       })
       
+      console.log('📥 Response from service:', response)
+      console.log('📥 Response.data:', response.data)
+      
       if (response.success && response.data) {
-        // Asegurar que los datos tienen la estructura correcta
-        const asistenciasData = response.data.data || []
-        setAsistencias(asistenciasData)
+        // Extraer datos: puede estar en response.data.data o directamente en response.data
+        const asistenciasArray = Array.isArray(response.data.data) ? response.data.data :
+                                 Array.isArray(response.data) ? response.data : []
+        
+        console.log('✅ Asistencias extraídas:', asistenciasArray)
+        console.log('✅ Total asistencias:', asistenciasArray.length)
+        
+        setAsistencias(asistenciasArray)
         setTotalPages(response.data.last_page || 1)
       } else {
+        console.warn('⚠️ Response no exitoso:', response.message)
         toast.error(response.message || 'Error al cargar asistencias')
         setAsistencias([])
       }
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Error de conexión: No se pudo cargar las asistencias'
+      console.error('❌ Error al cargar asistencias:', error)
       toast.error(errorMessage)
-      console.error('Error al cargar asistencias:', error)
       setAsistencias([])
     } finally {
       setLoading(false)

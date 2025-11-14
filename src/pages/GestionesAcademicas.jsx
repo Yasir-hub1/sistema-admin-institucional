@@ -50,6 +50,19 @@ const GestionesAcademicas = () => {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm()
 
+  // Función helper para normalizar el campo activa
+  const normalizeActiva = (value) => {
+    if (value === null || value === undefined) return false
+    if (typeof value === 'boolean') return value
+    if (typeof value === 'string') {
+      return value.toLowerCase() === 'true' || value === '1'
+    }
+    if (typeof value === 'number') {
+      return value === 1
+    }
+    return Boolean(value)
+  }
+
   useEffect(() => {
     fetchGestiones()
   }, [currentPage, perPage, searchTerm, filtrosAvanzados])
@@ -57,6 +70,14 @@ const GestionesAcademicas = () => {
   const fetchGestiones = async () => {
     try {
       setLoading(true)
+      
+      console.log('🔄 GestionesAcademicas.jsx - Iniciando fetch con params:', {
+        currentPage,
+        perPage,
+        searchTerm,
+        filtrosAvanzados
+      })
+      
       const response = await gestionAcademicaService.getGestiones({
         page: currentPage,
         per_page: perPage,
@@ -64,21 +85,42 @@ const GestionesAcademicas = () => {
         ...filtrosAvanzados
       })
       
-      console.log('📊 GestionesAcademicas.jsx - Response recibida:', response)
-      console.log('📊 GestionesAcademicas.jsx - response.success:', response.success)
-      console.log('📊 GestionesAcademicas.jsx - response.data:', response.data)
+      console.log('📊 GestionesAcademicas.jsx - Response completa:', response)
       
       if (response.success && response.data) {
-        // response.data es el objeto paginado: { data: [...], last_page: 1, total: X, ... }
-        const gestionesArray = response.data.data || []
-        const lastPage = response.data.last_page || 1
+        const paginatedData = response.data
+        const gestionesArray = Array.isArray(paginatedData?.data) ? paginatedData.data : []
+        const lastPage = paginatedData?.last_page || 1
         
-        console.log('✅ GestionesAcademicas.jsx - Gestiones array:', gestionesArray)
-        console.log('✅ GestionesAcademicas.jsx - Total gestiones:', gestionesArray.length)
-        console.log('✅ GestionesAcademicas.jsx - Last page:', lastPage)
+        console.log('📊 GestionesAcademicas.jsx - Datos extraídos:', {
+          totalGestiones: gestionesArray.length,
+          lastPage,
+          gestionesIDs: gestionesArray.map(g => g?.id)
+        })
         
-        setGestiones(gestionesArray)
+        // Normalizar el campo activa a booleano para todas las gestiones
+        const gestionesNormalizadas = gestionesArray.map(gestion => ({
+          ...gestion,
+          activa: normalizeActiva(gestion.activa)
+        }))
+        
+        console.log('✅ GestionesAcademicas.jsx - Gestiones normalizadas:', gestionesNormalizadas.map(g => ({ 
+          id: g.id, 
+          nombre: g.nombre, 
+          activa: g.activa, 
+          activa_tipo: typeof g.activa 
+        })))
+        
+        const gestionesActivas = gestionesNormalizadas.filter(g => g.activa === true)
+        console.log('✅ GestionesAcademicas.jsx - Gestiones ACTIVAS:', gestionesActivas.length, 'de', gestionesNormalizadas.length)
+        if (gestionesActivas.length > 0) {
+          console.log('✅ GestionesAcademicas.jsx - Detalles activas:', gestionesActivas.map(g => g.nombre))
+        }
+        
+        // Actualizar estado siempre, incluso si está vacío
+        setGestiones(gestionesNormalizadas)
         setTotalPages(lastPage)
+        console.log('✅ GestionesAcademicas.jsx - Estado actualizado. Total:', gestionesNormalizadas.length)
       } else {
         console.error('❌ GestionesAcademicas.jsx - Response sin éxito:', response)
         toast.error(response.message || 'Error al cargar gestiones académicas')
@@ -88,7 +130,7 @@ const GestionesAcademicas = () => {
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Error de conexión: No se pudo cargar las gestiones académicas'
       toast.error(errorMessage)
-      console.error('Error al cargar gestiones académicas:', error)
+      console.error('❌ Error al cargar gestiones académicas:', error)
       setGestiones([])
       setTotalPages(1)
     } finally {
@@ -125,7 +167,8 @@ const GestionesAcademicas = () => {
   const handleView = async (gestion) => {
     try {
       const response = await gestionAcademicaService.getGestion(gestion.id)
-      if (response.success) {
+      if (response.success && response.data) {
+        // El backend ahora devuelve data directamente como el objeto gestión
         setViewingGestion(response.data)
         setShowViewModal(true)
       } else {
@@ -163,7 +206,7 @@ const GestionesAcademicas = () => {
     try {
       const response = await gestionAcademicaService.activarGestion(id)
       if (response.success) {
-        toast.success('Gestión académica activada exitosamente')
+        toast.success(response.message || 'Gestión académica activada exitosamente')
         await fetchGestiones()
       } else {
         toast.error(response.message || 'Error al activar la gestión académica')
@@ -174,9 +217,33 @@ const GestionesAcademicas = () => {
     }
   }
 
+  const handleToggleEstado = async (gestion) => {
+    try {
+      const response = await gestionAcademicaService.toggleEstado(gestion.id)
+      if (response.success) {
+        toast.success(response.message || 'Estado de gestión académica actualizado exitosamente')
+        await fetchGestiones()
+      } else {
+        toast.error(response.message || 'Error al cambiar el estado de la gestión académica')
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.message || 'Error al cambiar el estado de la gestión académica'
+      toast.error(errorMessage)
+    }
+  }
+
   const onSubmit = async (data) => {
     try {
       setLoading(true)
+      
+      // Normalizar el valor de activa a booleano
+      const normalizeActiva = (value) => {
+        if (typeof value === 'boolean') return value
+        if (typeof value === 'string') {
+          return value === 'true' || value === '1'
+        }
+        return Boolean(value)
+      }
       
       // Preparar datos para el backend
       const datosBackend = {
@@ -185,7 +252,7 @@ const GestionesAcademicas = () => {
         periodo: parseInt(data.periodo),
         fecha_inicio: data.fecha_inicio,
         fecha_fin: data.fecha_fin,
-        activa: data.activa === 'true' || data.activa === true || data.activa === '1' || data.activa === 1
+        activa: normalizeActiva(data.activa)
       }
 
       let response
@@ -322,19 +389,38 @@ const GestionesAcademicas = () => {
       key: 'nombre',
       label: 'Nombre',
       sortable: true,
-      render: (row) => (
-        <div className="flex items-center space-x-3">
-          <div className="flex-shrink-0">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-semibold">
-              <CalendarDays className="h-5 w-5" />
+      render: (row) => {
+        const isActiva = normalizeActiva(row.activa)
+        return (
+          <div className="flex items-center space-x-3">
+            <div className="flex-shrink-0">
+              <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-white font-semibold ${
+                isActiva 
+                  ? 'bg-gradient-to-br from-success-500 to-success-600 shadow-glow shadow-success-500/50' 
+                  : 'bg-gradient-to-br from-primary-500 to-accent-500'
+              }`}>
+                {isActiva ? (
+                  <CheckCircle className="h-5 w-5" />
+                ) : (
+                  <CalendarDays className="h-5 w-5" />
+                )}
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center space-x-2">
+                <div className="font-medium text-gray-900 dark:text-gray-100">{row.nombre}</div>
+                {isActiva && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400 border border-success-200 dark:border-success-700">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    ACTIVA
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-gray-500">{row.año || row.anio} - Periodo {row.periodo}</div>
             </div>
           </div>
-          <div>
-            <div className="font-medium text-gray-900 dark:text-gray-100">{row.nombre}</div>
-            <div className="text-sm text-gray-500">{row.año || row.anio} - Periodo {row.periodo}</div>
-          </div>
-        </div>
-      )
+        )
+      }
     },
     {
       key: 'periodo',
@@ -381,25 +467,28 @@ const GestionesAcademicas = () => {
       key: 'activa',
       label: 'Estado',
       sortable: true,
-      render: (row) => (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          row.activa 
-            ? 'bg-success-100 text-success-800 dark:bg-success-900/20 dark:text-success-400' 
-            : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
-        }`}>
-          {row.activa ? (
-            <>
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Activa
-            </>
-          ) : (
-            <>
-              <XCircle className="h-3 w-3 mr-1" />
-              Inactiva
-            </>
-          )}
-        </span>
-      )
+      render: (row) => {
+        const isActiva = normalizeActiva(row.activa)
+        return (
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+            isActiva 
+              ? 'bg-gradient-to-r from-success-100 to-success-200 text-success-800 dark:from-success-900/30 dark:to-success-800/30 dark:text-success-300 border border-success-300 dark:border-success-700 shadow-sm' 
+              : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+          }`}>
+            {isActiva ? (
+              <>
+                <CheckCircle className="h-4 w-4 mr-1.5 animate-pulse" />
+                <span className="font-bold">ACTIVA</span>
+              </>
+            ) : (
+              <>
+                <XCircle className="h-4 w-4 mr-1.5" />
+                Inactiva
+              </>
+            )}
+          </span>
+        )
+      }
     },
     {
       key: 'actions',
@@ -411,27 +500,28 @@ const GestionesAcademicas = () => {
             size="sm"
             icon={<Eye className="h-4 w-4" />}
             onClick={() => handleView(row)}
+            title="Ver detalles"
           />
-          {!row.activa && (
-            <Button
-              variant="success"
-              size="sm"
-              icon={<CheckCircle className="h-4 w-4" />}
-              onClick={() => handleActivar(row.id)}
-              title="Activar gestión"
-            />
-          )}
+          <Button
+            variant={normalizeActiva(row.activa) ? "warning" : "success"}
+            size="sm"
+            icon={normalizeActiva(row.activa) ? <XCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+            onClick={() => handleToggleEstado(row)}
+            title={normalizeActiva(row.activa) ? "Desactivar gestión" : "Activar gestión"}
+          />
           <Button
             variant="ghost"
             size="sm"
             icon={<Edit2 className="h-4 w-4" />}
             onClick={() => handleEdit(row)}
+            title="Editar gestión"
           />
           <Button
             variant="ghost"
             size="sm"
             icon={<Trash2 className="h-4 w-4" />}
             onClick={() => handleDelete(row.id)}
+            title="Eliminar gestión"
           />
         </div>
       )
@@ -466,7 +556,12 @@ const GestionesAcademicas = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">Total Gestiones</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{gestiones.length}</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {gestiones.length}
+                {process.env.NODE_ENV === 'development' && (
+                  <span className="text-xs text-gray-400 ml-2">({gestiones.map(g => g.id).join(', ')})</span>
+                )}
+              </p>
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-glow">
               <CalendarDays className="h-6 w-6 text-white" />
@@ -479,7 +574,7 @@ const GestionesAcademicas = () => {
             <div>
               <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">Gestiones Activas</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                {gestiones.filter(g => g.activa).length}
+                {gestiones.filter(g => normalizeActiva(g.activa)).length}
               </p>
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-success-500 to-success-600 rounded-xl flex items-center justify-center shadow-glow">
@@ -504,14 +599,35 @@ const GestionesAcademicas = () => {
         
         <Card className="gradient" shadow="glow-lg">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">Gestión Activa</p>
-              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                {gestiones.find(g => g.activa)?.nombre || 'Ninguna'}
-              </p>
+              {(() => {
+                const gestionActiva = gestiones.find(g => normalizeActiva(g.activa))
+                return gestionActiva ? (
+                  <div className="flex items-center space-x-2 mt-1">
+                    <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                      {gestionActiva.nombre}
+                    </p>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400 border border-success-200 dark:border-success-700">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      ACTIVA
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-lg font-bold text-gray-500 dark:text-gray-400">Ninguna</p>
+                )
+              })()}
             </div>
-            <div className="w-12 h-12 bg-gradient-to-br from-info-500 to-info-600 rounded-xl flex items-center justify-center shadow-glow">
-              <Building className="h-6 w-6 text-white" />
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-glow ${
+              gestiones.find(g => normalizeActiva(g.activa))
+                ? 'bg-gradient-to-br from-success-500 to-success-600'
+                : 'bg-gradient-to-br from-info-500 to-info-600'
+            }`}>
+              {gestiones.find(g => normalizeActiva(g.activa)) ? (
+                <CheckCircle className="h-6 w-6 text-white" />
+              ) : (
+                <Building className="h-6 w-6 text-white" />
+              )}
             </div>
           </div>
         </Card>
@@ -619,18 +735,31 @@ const GestionesAcademicas = () => {
           </div>
         )}
         
-        <Table
-          columns={columns}
-          data={gestiones}
-          loading={loading}
-          pagination={{
-            currentPage,
-            totalPages,
-            perPage,
-            onPageChange: setCurrentPage,
-            onPerPageChange: setPerPage
-          }}
-        />
+        {gestiones.length === 0 && !loading ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No hay gestiones académicas disponibles</p>
+          </div>
+        ) : (
+          <Table
+            columns={columns}
+            data={gestiones}
+            loading={loading}
+            rowClassName={(index, row) => {
+              const isActiva = normalizeActiva(row?.activa)
+              return isActiva 
+                ? 'bg-success-50/50 dark:bg-success-900/10 border-l-4 border-success-500 shadow-sm hover:bg-success-100/50 dark:hover:bg-success-900/20' 
+                : ''
+            }}
+            pagination={{
+              currentPage,
+              totalPages,
+              perPage,
+              onPageChange: setCurrentPage,
+              onPerPageChange: setPerPage
+            }}
+          />
+        )}
+      
       </Card>
 
       {/* Modal de Crear/Editar */}

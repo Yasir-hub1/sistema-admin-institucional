@@ -39,11 +39,20 @@ const Table = ({
     bodyClassName
   )
   
-  const getRowClasses = (index) => clsx(
-    striped && index % 2 === 1 && 'bg-gray-50',
-    hover && 'hover:bg-gray-50',
-    rowClassName
-  )
+  const getRowClasses = (index, row) => {
+    const baseClasses = clsx(
+      striped && index % 2 === 1 && 'bg-gray-50',
+      hover && 'hover:bg-gray-50'
+    )
+    
+    // Si rowClassName es una función, llamarla con index y row
+    if (typeof rowClassName === 'function') {
+      return clsx(baseClasses, rowClassName(index, row))
+    }
+    
+    // Si es un string, usarlo directamente
+    return clsx(baseClasses, rowClassName)
+  }
   
   const getCellClasses = () => clsx(
     compact ? 'px-3 py-2' : 'px-6 py-4',
@@ -114,7 +123,7 @@ const Table = ({
         </thead>
         <tbody className={bodyClasses}>
           {data.map((row, index) => (
-            <tr key={row.id || index} className={getRowClasses(index)}>
+            <tr key={row.id || index} className={getRowClasses(index, row)}>
               {columns.map((column) => (
                 <td
                   key={column.key}
