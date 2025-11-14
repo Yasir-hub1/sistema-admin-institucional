@@ -15,12 +15,32 @@ export const auditoriaService = {
    */
   async getAuditoria(params = {}) {
     try {
-      const response = await get('/auditoria', params)
+      // Construir queryParams solo con valores no vacíos
+      const queryParams = {
+        page: params.page || 1,
+        per_page: params.per_page || 20
+      }
+
+      // Solo agregar parámetros con valores
+      if (params.modelo) queryParams.modelo = params.modelo
+      if (params.accion) queryParams.accion = params.accion
+      if (params.user_id) queryParams.user_id = params.user_id
+      if (params.fecha_inicio) queryParams.fecha_inicio = params.fecha_inicio
+      if (params.fecha_fin) queryParams.fecha_fin = params.fecha_fin
+      if (params.search) queryParams.search = params.search
+
+      console.log('📤 getAuditoria - Enviando params:', queryParams)
+
+      const response = await get('/auditoria', queryParams)
+      
+      console.log('📥 getAuditoria - Respuesta:', response)
+      console.log('📥 getAuditoria - response.data:', response.data)
       
       if (response.data.success) {
         return {
           success: true,
-          data: response.data.data
+          data: response.data.data,
+          message: response.data.message
         }
       } else {
         return {
@@ -29,9 +49,10 @@ export const auditoriaService = {
         }
       }
     } catch (error) {
+      console.error('❌ getAuditoria - Error:', error)
       return {
         success: false,
-        message: error.message || 'Error al obtener auditoría'
+        message: error.response?.data?.message || error.message || 'Error al obtener auditoría'
       }
     }
   },
@@ -44,12 +65,26 @@ export const auditoriaService = {
    */
   async getAuditoriaPorModelo(modelo, params = {}) {
     try {
-      const response = await get(`/auditoria/modelo/${modelo}`, params)
+      // Construir queryParams solo con valores no vacíos
+      const queryParams = {
+        page: params.page || 1,
+        per_page: params.per_page || 15
+      }
+
+      if (params.modelo_id) queryParams.modelo_id = params.modelo_id
+      if (params.accion) queryParams.accion = params.accion
+
+      console.log('📤 getAuditoriaPorModelo - Modelo:', modelo, 'Params:', queryParams)
+
+      const response = await get(`/auditoria/modelo/${modelo}`, queryParams)
+      
+      console.log('📥 getAuditoriaPorModelo - Respuesta:', response)
       
       if (response.data.success) {
         return {
           success: true,
-          data: response.data.data
+          data: response.data.data,
+          message: response.data.message
         }
       } else {
         return {
@@ -58,9 +93,10 @@ export const auditoriaService = {
         }
       }
     } catch (error) {
+      console.error('❌ getAuditoriaPorModelo - Error:', error)
       return {
         success: false,
-        message: error.message || 'Error al obtener auditoría'
+        message: error.response?.data?.message || error.message || 'Error al obtener auditoría'
       }
     }
   }

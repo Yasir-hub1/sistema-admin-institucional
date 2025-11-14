@@ -45,6 +45,7 @@ const Grupos = () => {
   const [viewingGrupo, setViewingGrupo] = useState(null)
   const [materias, setMaterias] = useState([])
   const [gestiones, setGestiones] = useState([])
+  const [docentes, setDocentes] = useState([])
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState(null)
   const fileInputRef = React.useRef(null)
@@ -60,6 +61,7 @@ const Grupos = () => {
     fetchGrupos()
     fetchMaterias()
     fetchGestiones()
+    fetchDocentes()
   }, [currentPage, perPage, searchTerm, filtrosAvanzados])
 
   const fetchGrupos = async () => {
@@ -134,6 +136,18 @@ const Grupos = () => {
       }
     } catch (error) {
       console.error('Error al cargar gestiones:', error)
+    }
+  }
+
+  const fetchDocentes = async () => {
+    try {
+      const docenteService = await import('../services/docenteService')
+      const response = await docenteService.docenteService.getDocentes({ per_page: 100 })
+      if (response.success) {
+        setDocentes(response.data?.data || [])
+      }
+    } catch (error) {
+      console.error('Error al cargar docentes:', error)
     }
   }
 
@@ -246,6 +260,7 @@ const Grupos = () => {
     reset({
       materia_id: grupo.materia_id || grupo.materia?.id || '',
       gestion_id: grupo.gestion_id || grupo.gestion?.id || '',
+      docente_id: grupo.docente_id || '',
       numero_grupo: grupo.numero_grupo || '',
       cupo_maximo: grupo.cupo_maximo || 30
     })
@@ -259,6 +274,7 @@ const Grupos = () => {
     reset({
       materia_id: '',
       gestion_id: gestionActiva?.id || '',
+      docente_id: '',
       numero_grupo: '',
       cupo_maximo: 30
     })
@@ -402,6 +418,7 @@ const Grupos = () => {
       const datosBackend = {
         materia_id: parseInt(data.materia_id),
         gestion_id: parseInt(data.gestion_id),
+        docente_id: data.docente_id ? parseInt(data.docente_id) : null,
         numero_grupo: parseInt(data.numero_grupo),
         cupo_maximo: parseInt(data.cupo_maximo)
       }
@@ -708,6 +725,28 @@ const Grupos = () => {
               </select>
               {errors.gestion_id && (
                 <p className="mt-1 text-sm text-error-600">{errors.gestion_id.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Docente Titular (Opcional)
+              </label>
+              <select
+                {...register('docente_id')}
+                className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">Sin asignar</option>
+                {docentes.map(d => (
+                  <option key={d.id} value={d.id}>
+                    {d.name || d.user?.name || d.codigo_docente} {d.codigo_docente && `(${d.codigo_docente})`}
+                  </option>
+                ))}
+              </select>
+              {errors.docente_id && (
+                <p className="mt-1 text-sm text-error-600">{errors.docente_id.message}</p>
               )}
             </div>
             

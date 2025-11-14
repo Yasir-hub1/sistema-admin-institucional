@@ -79,6 +79,10 @@ const Reportes = () => {
         }
       })
 
+      // Log para debug
+      console.log('📤 Exportando PDF con parámetros:', paramsExport)
+      console.log('📤 Filtros originales:', filtros)
+
       const result = await reporteService.exportarPDF(tipo, paramsExport)
       if (result.success) {
         toast.success('PDF exportado exitosamente')
@@ -86,7 +90,8 @@ const Reportes = () => {
         toast.error(result.message || 'Error al exportar PDF')
       }
     } catch (error) {
-      console.error('Error al exportar PDF:', error)
+      console.error('❌ Error al exportar PDF:', error)
+      console.error('❌ Error response:', error.response?.data)
       toast.error(error.response?.data?.message || 'Error al exportar PDF')
     } finally {
       setLoading(false)
@@ -117,6 +122,10 @@ const Reportes = () => {
         }
       })
 
+      // Log para debug
+      console.log('📤 Exportando Excel con parámetros:', paramsExport)
+      console.log('📤 Filtros originales:', filtros)
+
       const result = await reporteService.exportarExcel(tipo, paramsExport)
       if (result.success) {
         toast.success('Excel exportado exitosamente')
@@ -124,7 +133,8 @@ const Reportes = () => {
         toast.error(result.message || 'Error al exportar Excel')
       }
     } catch (error) {
-      console.error('Error al exportar Excel:', error)
+      console.error('❌ Error al exportar Excel:', error)
+      console.error('❌ Error response:', error.response?.data)
       toast.error(error.response?.data?.message || 'Error al exportar Excel')
     } finally {
       setLoading(false)

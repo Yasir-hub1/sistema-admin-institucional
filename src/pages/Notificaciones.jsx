@@ -1,98 +1,140 @@
 import React, { useState, useEffect } from 'react'
-import { Bell, Check, X, Clock, AlertCircle, Calendar, Filter, CheckCheck } from 'lucide-react'
+import { Bell, Check, X, Clock, AlertCircle, Calendar, Filter, CheckCheck, Search } from 'lucide-react'
 import { notificacionService } from '../services/notificacionService'
 import Card from '../components/common/Card'
 import Button from '../components/common/Button'
+import Input from '../components/common/Input'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import toast from 'react-hot-toast'
-import { formatRelativeTime, formatDateTime } from '../utils/helpers'
+import { formatRelativeTime } from '../utils/helpers'
 
 const Notificaciones = () => {
   const [notificaciones, setNotificaciones] = useState([])
   const [noLeidas, setNoLeidas] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [filtro, setFiltro] = useState('todas') // todas, leidas, no_leidas
-  const [tipoFiltro, setTipoFiltro] = useState('todas') // todas, horario_cambio, asistencia, alerta
+  const [filtroEstado, setFiltroEstado] = useState('todas') // todas, leidas, no_leidas
+  const [filtroTipo, setFiltroTipo] = useState('todas') // todas, horario_cambio, asistencia, alerta, info
+  const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
   const [total, setTotal] = useState(0)
   const [totalPaginas, setTotalPaginas] = useState(1)
 
   useEffect(() => {
     fetchNotificaciones()
-    fetchNoLeidas()
-  }, [filtro, tipoFiltro, pagina])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtroEstado, filtroTipo, busqueda, pagina])
 
   const fetchNotificaciones = async () => {
     setLoading(true)
     try {
+      // Construir parámetros de filtrado
       const params = {
         page: pagina,
         per_page: 15
       }
 
-      if (filtro === 'leidas') {
+      // Filtro por estado (leída/no leída)
+      if (filtroEstado === 'leidas') {
         params.leida = 'true'
-      } else if (filtro === 'no_leidas') {
+      } else if (filtroEstado === 'no_leidas') {
         params.leida = 'false'
       }
 
-      if (tipoFiltro !== 'todas') {
-        params.tipo = tipoFiltro
+      // Filtro por tipo
+      if (filtroTipo !== 'todas') {
+        params.tipo = filtroTipo
+      }
+
+      // Búsqueda
+      if (busqueda.trim()) {
+        params.search = busqueda.trim()
       }
 
       const result = await notificacionService.getNotificaciones(params)
-      if (result.success) {
-        // El backend devuelve un objeto paginado con estructura: { data: [...], last_page: X, total: Y }
-        const paginatedData = result.data?.data || result.data
-        setNotificaciones(paginatedData?.data || paginatedData || [])
-        setTotal(paginatedData?.total || result.data?.total || 0)
-        setTotalPaginas(paginatedData?.last_page || result.data?.last_page || 1)
-        setNoLeidas(result.data?.no_leidas || result.noLeidas || 0)
+      
+      if (result.success && result.data) {
+        // El backend devuelve estructura paginada: { data: { data: [...], total: X, last_page: Y } }
+        const notificacionesArray = result.data.data || []
+        const noLeidasCount = result.noLeidas || result.data?.no_leidas || 0
+        
+        setNotificaciones(notificacionesArray)
+        setTotal(result.data.total || 0)
+        setTotalPaginas(result.data.last_page || 1)
+        setNoLeidas(noLeidasCount)
+      } else {
+        toast.error(result.message || 'Error al cargar notificaciones')
+        setNotificaciones([])
+        setNoLeidas(0)
       }
     } catch (error) {
+      console.error('Error al cargar notificaciones:', error)
       toast.error('Error al cargar notificaciones')
+      setNotificaciones([])
+      setNoLeidas(0)
     } finally {
       setLoading(false)
     }
   }
 
-  const fetchNoLeidas = async () => {
-    const result = await notificacionService.contarNoLeidas()
-    if (result.success) {
-      setNoLeidas(result.count)
-    }
-  }
-
   const handleMarcarLeida = async (id) => {
-    const result = await notificacionService.marcarLeida(id)
-    if (result.success) {
-      setNotificaciones(prev =>
-        prev.map(n => n.id === id ? { ...n, leida: true, leida_at: new Date().toISOString() } : n)
-      )
-      setNoLeidas(prev => Math.max(0, prev - 1))
-      toast.success('Notificación marcada como leída')
+    try {
+      const result = await notificacionService.marcarLeida(id)
+      
+      if (result.success) {
+        setNotificaciones(prev =>
+          prev.map(n => n.id === id ? { ...n, leida: true, leida_at: new Date().toISOString() } : n)
+        )
+        setNoLeidas(prev => Math.max(0, prev - 1))
+        toast.success('Notificación marcada como leída')
+      } else {
+        toast.error(result.message || 'Error al marcar notificación')
+      }
+    } catch (error) {
+      toast.error('Error al marcar notificación')
     }
   }
 
   const handleMarcarTodasLeidas = async () => {
-    const result = await notificacionService.marcarTodasLeidas()
-    if (result.success) {
-      setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })))
-      setNoLeidas(0)
-      toast.success('Todas las notificaciones marcadas como leídas')
-      fetchNotificaciones()
+    try {
+      const result = await notificacionService.marcarTodasLeidas()
+      
+      if (result.success) {
+        setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })))
+        setNoLeidas(0)
+        toast.success('Todas las notificaciones marcadas como leídas')
+        fetchNotificaciones()
+      } else {
+        toast.error(result.message || 'Error al marcar notificaciones')
+      }
+    } catch (error) {
+      toast.error('Error al marcar notificaciones')
     }
   }
 
   const handleEliminar = async (id) => {
     if (window.confirm('¿Estás seguro de eliminar esta notificación?')) {
-      const result = await notificacionService.eliminarNotificacion(id)
-      if (result.success) {
-        setNotificaciones(prev => prev.filter(n => n.id !== id))
-        toast.success('Notificación eliminada')
-        fetchNotificaciones()
+      try {
+        const result = await notificacionService.eliminarNotificacion(id)
+        
+        if (result.success) {
+          setNotificaciones(prev => prev.filter(n => n.id !== id))
+          setTotal(prev => Math.max(0, prev - 1))
+          toast.success('Notificación eliminada')
+          fetchNotificaciones()
+        } else {
+          toast.error(result.message || 'Error al eliminar notificación')
+        }
+      } catch (error) {
+        toast.error('Error al eliminar notificación')
       }
     }
+  }
+
+  const limpiarFiltros = () => {
+    setFiltroEstado('todas')
+    setFiltroTipo('todas')
+    setBusqueda('')
+    setPagina(1)
   }
 
   const getIconoTipo = (tipo) => {
@@ -103,6 +145,8 @@ const Notificaciones = () => {
         return <Check className="h-5 w-5" />
       case 'alerta':
         return <AlertCircle className="h-5 w-5" />
+      case 'info':
+        return <Bell className="h-5 w-5" />
       default:
         return <Bell className="h-5 w-5" />
     }
@@ -116,6 +160,8 @@ const Notificaciones = () => {
         return 'text-success-500 bg-success-100 dark:bg-success-900/30'
       case 'alerta':
         return 'text-warning-500 bg-warning-100 dark:bg-warning-900/30'
+      case 'info':
+        return 'text-info-500 bg-info-100 dark:bg-info-900/30'
       default:
         return 'text-gray-500 bg-gray-100 dark:bg-gray-800'
     }
@@ -129,6 +175,8 @@ const Notificaciones = () => {
         return 'Asistencia'
       case 'alerta':
         return 'Alerta'
+      case 'info':
+        return 'Información'
       default:
         return tipo
     }
@@ -164,33 +212,68 @@ const Notificaciones = () => {
 
       {/* Filtros */}
       <Card>
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center space-x-2">
-            <Filter className="h-5 w-5 text-gray-400" />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Estado:</span>
-            <select
-              value={filtro}
-              onChange={(e) => { setFiltro(e.target.value); setPagina(1) }}
-              className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="todas">Todas</option>
-              <option value="no_leidas">No leídas</option>
-              <option value="leidas">Leídas</option>
-            </select>
+        <div className="space-y-4">
+          {/* Búsqueda */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Input
+              placeholder="Buscar en título o mensaje..."
+              value={busqueda}
+              onChange={(e) => {
+                setBusqueda(e.target.value)
+                setPagina(1)
+              }}
+              className="pl-10"
+            />
           </div>
 
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Tipo:</span>
-            <select
-              value={tipoFiltro}
-              onChange={(e) => { setTipoFiltro(e.target.value); setPagina(1) }}
-              className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="todas">Todos</option>
-              <option value="horario_cambio">Cambios de Horario</option>
-              <option value="asistencia">Asistencias</option>
-              <option value="alerta">Alertas</option>
-            </select>
+          {/* Filtros de estado y tipo */}
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center space-x-2">
+              <Filter className="h-5 w-5 text-gray-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Estado:</span>
+              <select
+                value={filtroEstado}
+                onChange={(e) => {
+                  setFiltroEstado(e.target.value)
+                  setPagina(1)
+                }}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="todas">Todas</option>
+                <option value="no_leidas">No leídas</option>
+                <option value="leidas">Leídas</option>
+              </select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Tipo:</span>
+              <select
+                value={filtroTipo}
+                onChange={(e) => {
+                  setFiltroTipo(e.target.value)
+                  setPagina(1)
+                }}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="todas">Todos</option>
+                <option value="horario_cambio">Cambios de Horario</option>
+                <option value="asistencia">Asistencias</option>
+                <option value="alerta">Alertas</option>
+                <option value="info">Información</option>
+              </select>
+            </div>
+
+            {(filtroEstado !== 'todas' || filtroTipo !== 'todas' || busqueda.trim()) && (
+              <Button
+                onClick={limpiarFiltros}
+                variant="outline"
+                size="sm"
+                icon={<X className="h-4 w-4" />}
+              >
+                Limpiar filtros
+              </Button>
+            )}
           </div>
         </div>
       </Card>
@@ -279,26 +362,31 @@ const Notificaciones = () => {
 
       {/* Paginación */}
       {totalPaginas > 1 && (
-        <div className="flex items-center justify-center space-x-2">
-          <Button
-            onClick={() => setPagina(p => Math.max(1, p - 1))}
-            disabled={pagina === 1}
-            variant="outline"
-            size="sm"
-          >
-            Anterior
-          </Button>
-          <span className="text-sm text-gray-600 dark:text-gray-400">
-            Página {pagina} de {totalPaginas}
-          </span>
-          <Button
-            onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
-            disabled={pagina === totalPaginas}
-            variant="outline"
-            size="sm"
-          >
-            Siguiente
-          </Button>
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Mostrando {notificaciones.length} de {total} notificaciones
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              onClick={() => setPagina(p => Math.max(1, p - 1))}
+              disabled={pagina === 1}
+              variant="outline"
+              size="sm"
+            >
+              Anterior
+            </Button>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Página {pagina} de {totalPaginas}
+            </span>
+            <Button
+              onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+              disabled={pagina === totalPaginas}
+              variant="outline"
+              size="sm"
+            >
+              Siguiente
+            </Button>
+          </div>
         </div>
       )}
     </div>

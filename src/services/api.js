@@ -53,6 +53,26 @@ api.interceptors.response.use(
       })
     }
     
+    // Disparar evento si la acción puede haber creado una notificación
+    const url = response.config?.url || ''
+    const method = response.config?.method?.toUpperCase() || ''
+    
+    // URLs que pueden crear notificaciones
+    const accionesConNotificacion = [
+      '/asistencias',
+      '/horarios',
+      '/grupos',
+      '/gestiones-academicas'
+    ]
+    
+    if (accionesConNotificacion.some(accion => url.includes(accion)) && 
+        (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+      // Disparar evento después de un pequeño delay para dar tiempo al backend
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('notificacion-creada'))
+      }, 1000)
+    }
+    
     return response
   },
   async (error) => {

@@ -29,12 +29,23 @@ const NotificationsDropdown = () => {
   useEffect(() => {
     fetchNotificaciones()
     
-    // Actualizar cada 30 segundos
+    // Actualizar cada 10 segundos (más frecuente para mejor UX)
     const interval = setInterval(() => {
       fetchNotificaciones()
-    }, 30000)
+    }, 10000)
 
-    return () => clearInterval(interval)
+    // Escuchar eventos personalizados de actualización
+    const handleNotificacionCreada = () => {
+      console.log('🔔 Evento: Nueva notificación creada, refrescando...')
+      fetchNotificaciones()
+    }
+
+    window.addEventListener('notificacion-creada', handleNotificacionCreada)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('notificacion-creada', handleNotificacionCreada)
+    }
   }, [])
 
   useEffect(() => {
@@ -55,44 +66,95 @@ const NotificationsDropdown = () => {
 
   const fetchNotificaciones = async () => {
     try {
+      console.log('🔔 NotificationsDropdown - Fetching notificaciones')
       const result = await notificacionService.getNotificaciones({ per_page: 5 })
-      if (result.success) {
-        setNotificaciones(result.data?.data || [])
-        setNoLeidas(result.noLeidas || 0)
+      console.log('🔔 NotificationsDropdown - Result completo:', result)
+      console.log('🔔 NotificationsDropdown - result.data:', result.data)
+      console.log('🔔 NotificationsDropdown - result.data.data:', result.data?.data)
+      
+      if (result.success && result.data) {
+        // Extraer notificaciones: puede estar en result.data.data (paginado) o directamente en result.data
+        let notifs = []
+        let noLeidasCount = 0
+        
+        if (result.data.data && Array.isArray(result.data.data)) {
+          // Estructura paginada: { data: { data: [...], total: X, ... } }
+          notifs = result.data.data
+          noLeidasCount = result.noLeidas || result.data?.no_leidas || 0
+        } else if (Array.isArray(result.data)) {
+          // Estructura directa: { data: [...] }
+          notifs = result.data
+          noLeidasCount = result.noLeidas || 0
+        } else if (result.data.data && Array.isArray(result.data.data.data)) {
+          // Estructura anidada: { data: { data: { data: [...] } } }
+          notifs = result.data.data.data
+          noLeidasCount = result.noLeidas || result.data?.no_leidas || 0
+        }
+        
+        console.log('🔔 Notificaciones extraídas:', notifs.length, notifs)
+        console.log('🔔 No leídas:', noLeidasCount)
+        
+        setNotificaciones(notifs)
+        setNoLeidas(noLeidasCount)
+      } else {
+        console.warn('⚠️ Error al obtener notificaciones:', result.message)
+        setNotificaciones([])
+        setNoLeidas(0)
       }
     } catch (error) {
-      console.error('Error al obtener notificaciones:', error)
+      console.error('❌ Error al obtener notificaciones:', error)
+      console.error('❌ Error details:', error.response?.data)
+      setNotificaciones([])
+      setNoLeidas(0)
     }
   }
 
   const handleMarcarLeida = async (id, e) => {
     e.stopPropagation()
+    console.log('🔔 Marcando notificación como leída:', id)
     const result = await notificacionService.marcarLeida(id)
+    console.log('🔔 Resultado marcar leída:', result)
+    
     if (result.success) {
       setNotificaciones(prev => 
         prev.map(n => n.id === id ? { ...n, leida: true, leida_at: new Date().toISOString() } : n)
       )
       setNoLeidas(prev => Math.max(0, prev - 1))
+      toast.success('Notificación marcada como leída')
+    } else {
+      toast.error(result.message || 'Error al marcar notificación')
     }
   }
 
   const handleMarcarTodasLeidas = async () => {
     setLoading(true)
+    console.log('🔔 Marcando todas como leídas')
     const result = await notificacionService.marcarTodasLeidas()
+    console.log('🔔 Resultado marcar todas:', result)
+    
     if (result.success) {
       setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })))
       setNoLeidas(0)
       toast.success('Todas las notificaciones marcadas como leídas')
+      // Refrescar después de marcar todas
+      setTimeout(() => fetchNotificaciones(), 500)
+    } else {
+      toast.error(result.message || 'Error al marcar notificaciones')
     }
     setLoading(false)
   }
 
   const handleEliminar = async (id, e) => {
     e.stopPropagation()
+    console.log('🔔 Eliminando notificación:', id)
     const result = await notificacionService.eliminarNotificacion(id)
+    console.log('🔔 Resultado eliminar:', result)
+    
     if (result.success) {
       setNotificaciones(prev => prev.filter(n => n.id !== id))
       toast.success('Notificación eliminada')
+    } else {
+      toast.error(result.message || 'Error al eliminar notificación')
     }
   }
 
@@ -115,6 +177,8 @@ const NotificationsDropdown = () => {
         return <Check className="h-4 w-4" />
       case 'alerta':
         return <AlertCircle className="h-4 w-4" />
+      case 'info':
+        return <Bell className="h-4 w-4" />
       default:
         return <Bell className="h-4 w-4" />
     }
@@ -128,6 +192,8 @@ const NotificationsDropdown = () => {
         return 'text-success-500 bg-success-100 dark:bg-success-900/30'
       case 'alerta':
         return 'text-warning-500 bg-warning-100 dark:bg-warning-900/30'
+      case 'info':
+        return 'text-info-500 bg-info-100 dark:bg-info-900/30'
       default:
         return 'text-gray-500 bg-gray-100 dark:bg-gray-800'
     }

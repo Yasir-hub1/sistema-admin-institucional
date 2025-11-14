@@ -24,14 +24,23 @@ const Auditoria = () => {
 
   useEffect(() => {
     fetchAuditoria()
-  }, [filtros, pagina])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtros, pagina, busqueda])
 
   const fetchAuditoria = async () => {
     setLoading(true)
     try {
+      console.log('📤 Fetching auditoría con params:', {
+        page: pagina,
+        per_page: 20,
+        ...filtros,
+        search: busqueda
+      })
+
       const params = {
         page: pagina,
         per_page: 20,
+        search: busqueda,
         ...filtros
       }
 
@@ -43,15 +52,30 @@ const Auditoria = () => {
       })
 
       const result = await auditoriaService.getAuditoria(params)
+      
+      console.log('📥 Result from service:', result)
+      console.log('📥 Result.data:', result.data)
+      
       if (result.success) {
-        setRegistros(result.data?.data || [])
+        // Extraer datos: puede estar en result.data.data o directamente en result.data
+        const registrosArray = Array.isArray(result.data.data) ? result.data.data :
+                               Array.isArray(result.data) ? result.data : []
+        
+        console.log('✅ Registros extraídos:', registrosArray)
+        console.log('✅ Total registros:', registrosArray.length)
+        
+        setRegistros(registrosArray)
         setTotal(result.data?.total || 0)
         setTotalPaginas(result.data?.last_page || 1)
       } else {
+        console.warn('⚠️ Result no exitoso:', result.message)
         toast.error(result.message || 'Error al cargar auditoría')
+        setRegistros([])
       }
     } catch (error) {
+      console.error('❌ Error al cargar auditoría:', error)
       toast.error('Error al cargar registros de auditoría')
+      setRegistros([])
     } finally {
       setLoading(false)
     }
@@ -116,13 +140,8 @@ const Auditoria = () => {
     return labels[accion] || accion
   }
 
-  const registrosFiltrados = busqueda
-    ? registros.filter(r =>
-        r.descripcion?.toLowerCase().includes(busqueda.toLowerCase()) ||
-        r.modelo?.toLowerCase().includes(busqueda.toLowerCase()) ||
-        r.user?.name?.toLowerCase().includes(busqueda.toLowerCase())
-      )
-    : registros
+  // Nota: La búsqueda ahora se hace en el backend
+  const registrosFiltrados = registros
 
   if (loading && registros.length === 0) {
     return (
@@ -168,13 +187,14 @@ const Auditoria = () => {
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary-500"
               >
                 <option value="">Todos</option>
+                <option value="User">Usuario</option>
                 <option value="Docente">Docente</option>
+                <option value="GestionAcademica">Gestión Académica</option>
+                <option value="Grupo">Grupo</option>
                 <option value="Horario">Horario</option>
                 <option value="Asistencia">Asistencia</option>
                 <option value="Aula">Aula</option>
-                <option value="Grupo">Grupo</option>
                 <option value="Materia">Materia</option>
-                <option value="User">Usuario</option>
               </select>
             </div>
 
