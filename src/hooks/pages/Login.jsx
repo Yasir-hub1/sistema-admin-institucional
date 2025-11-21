@@ -84,7 +84,7 @@ const Login = () => {
             <GraduationCap className="h-10 w-10 text-white" />
           </div>
           <h1 className="mt-6 text-4xl font-bold gradient-text animate-fade-in-up">
-            FICCT Sistema
+            ICAP - UAGRM
           </h1>
           <p className="mt-2 text-lg text-gray-600 dark:text-gray-400 animate-fade-in-up">
             Sistema Académico Inteligente

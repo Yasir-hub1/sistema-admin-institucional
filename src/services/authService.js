@@ -8,20 +8,26 @@ import { MESSAGES } from '../utils/constants'
  */
 export const authService = {
   /**
-   * Iniciar sesión
+   * Iniciar sesión para administradores/docentes
    * @param {object} credentials - Credenciales de login
-   * @param {string} credentials.email - Email del usuario
+   * @param {string} credentials.email - Email del usuario (opcional)
+   * @param {string} credentials.ci - CI del usuario (opcional, alternativo a email)
    * @param {string} credentials.password - Contraseña
    * @returns {Promise<object>} Respuesta con token y usuario
    */
-  async login(credentials) {
+  async loginAdmin(credentials) {
     try {
-      const response = await post('/auth/login', credentials)
+      const response = await post('/auth/admin/login', credentials)
       
       if (response.data.success) {
         return {
           success: true,
-          data: response.data.data,
+          data: {
+            token: response.data.token,
+            user: response.data.user,
+            token_type: response.data.token_type,
+            expires_in: response.data.expires_in
+          },
           message: MESSAGES.SUCCESS.LOGIN
         }
       } else {
@@ -33,7 +39,73 @@ export const authService = {
     } catch (error) {
       return {
         success: false,
-        message: error.message || MESSAGES.ERROR.LOGIN
+        message: error.response?.data?.message || error.message || MESSAGES.ERROR.LOGIN
+      }
+    }
+  },
+
+  /**
+   * Iniciar sesión para estudiantes
+   * @param {object} credentials - Credenciales de login
+   * @param {string} credentials.ci - CI del estudiante
+   * @param {string} credentials.password - Contraseña
+   * @returns {Promise<object>} Respuesta con token y usuario
+   */
+  async loginEstudiante(credentials) {
+    try {
+      const response = await post('/auth/estudiante/login', credentials)
+      
+      if (response.data.success) {
+        return {
+          success: true,
+          data: {
+            token: response.data.token,
+            user: response.data.user || response.data.data,
+            token_type: response.data.token_type,
+            expires_in: response.data.expires_in
+          },
+          message: MESSAGES.SUCCESS.LOGIN
+        }
+      } else {
+        return {
+          success: false,
+          message: response.data.message || MESSAGES.ERROR.LOGIN
+        }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || MESSAGES.ERROR.LOGIN
+      }
+    }
+  },
+
+  /**
+   * Iniciar sesión (método genérico que detecta el tipo de usuario)
+   * @param {object} credentials - Credenciales de login
+   * @param {string} credentials.email - Email (para admin/docente)
+   * @param {string} credentials.ci - CI (para estudiante o admin/docente)
+   * @param {string} credentials.password - Contraseña
+   * @param {string} credentials.userType - Tipo de usuario: 'admin' | 'estudiante' (opcional)
+   * @returns {Promise<object>} Respuesta con token y usuario
+   */
+  async login(credentials) {
+    // Si se especifica el tipo de usuario, usar el endpoint correspondiente
+    if (credentials.userType === 'estudiante') {
+      return this.loginEstudiante(credentials)
+    } else if (credentials.userType === 'admin' || credentials.email) {
+      return this.loginAdmin(credentials)
+    } else if (credentials.ci) {
+      // Intentar primero como admin/docente, luego como estudiante
+      const adminResult = await this.loginAdmin(credentials)
+      if (adminResult.success) {
+        return adminResult
+      }
+      return this.loginEstudiante(credentials)
+    } else {
+      return {
+        success: false,
+        message: 'Debe proporcionar email o CI'
       }
     }
   },
@@ -77,17 +149,20 @@ export const authService = {
   },
 
   /**
-   * Obtener usuario actual
+   * Obtener usuario actual (perfil)
    * @returns {Promise<object>} Datos del usuario actual
    */
   async getCurrentUser() {
     try {
-      const response = await get('/auth/me')
+      const response = await get('/auth/perfil')
       
-      if (response.data.success && response.data.data) {
+      if (response.data.success) {
+        // El backend puede retornar data directamente o dentro de data.data
+        const userData = response.data.data || response.data.user || response.data
+        
         return {
           success: true,
-          data: response.data.data
+          data: userData
         }
       } else {
         // Si no hay datos válidos, lanzar error para que se limpie la sesión
@@ -99,7 +174,7 @@ export const authService = {
         localStorage.removeItem('token')
         sessionStorage.clear()
       }
-      throw new Error(error.message || 'Error al obtener usuario')
+      throw new Error(error.response?.data?.message || error.message || 'Error al obtener usuario')
     }
   },
 
@@ -394,6 +469,51 @@ export const authService = {
       return response.data.success && response.data.data.has_role
     } catch (error) {
       return false
+    }
+  },
+
+  /**
+   * Registrar un nuevo estudiante
+   * @param {object} data - Datos del estudiante
+   * @param {string} data.ci - CI del estudiante
+   * @param {string} data.nombre - Nombre del estudiante
+   * @param {string} data.apellido - Apellido del estudiante
+   * @param {string} data.celular - Celular del estudiante
+   * @param {string} data.fecha_nacimiento - Fecha de nacimiento
+   * @param {string} data.direccion - Dirección
+   * @param {string} data.provincia - Provincia
+   * @param {string} data.password - Contraseña
+   * @param {string} data.password_confirmation - Confirmación de contraseña
+   * @returns {Promise<object>} Respuesta con token y usuario
+   */
+  async registrarEstudiante(data) {
+    try {
+      const response = await post('/auth/estudiante/registrar', data)
+      
+      if (response.data.success) {
+        return {
+          success: true,
+          data: {
+            token: response.data.token,
+            user: response.data.user || response.data.data,
+            token_type: response.data.token_type || 'bearer',
+            expires_in: response.data.expires_in
+          },
+          message: response.data.message || 'Registro exitoso. Bienvenido al sistema'
+        }
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Error en el registro',
+          errors: response.data.errors
+        }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Error al registrar',
+        errors: error.response?.data?.errors
+      }
     }
   }
 }

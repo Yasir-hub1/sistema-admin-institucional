@@ -1,8 +1,8 @@
-// Constantes del sistema académico FICCT
+// Constantes del sistema académico ICAP
 
 export const APP_CONFIG = {
   apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
-  appName: import.meta.env.VITE_APP_NAME || 'Sistema Académico FICCT',
+  appName: import.meta.env.VITE_APP_NAME || 'Sistema Académico ICAP',
   appVersion: import.meta.env.VITE_APP_VERSION || '1.0.0',
   debugMode: import.meta.env.VITE_DEBUG_MODE === 'true' || false,
 }
@@ -10,11 +10,15 @@ export const APP_CONFIG = {
 export const API_ENDPOINTS = {
   // Autenticación
   AUTH: {
-    LOGIN: '/auth/login',
+    LOGIN_ADMIN: '/auth/admin/login',
+    LOGIN_ESTUDIANTE: '/auth/estudiante/login',
     LOGOUT: '/auth/logout',
-    ME: '/auth/me',
+    PERFIL: '/auth/perfil',
     REFRESH: '/auth/refresh',
     CHANGE_PASSWORD: '/auth/change-password',
+    // Mantener para compatibilidad
+    LOGIN: '/auth/admin/login',
+    ME: '/auth/perfil',
   },
   
   // Usuarios
@@ -158,11 +162,14 @@ export const MESSAGES = {
   },
 }
 
+/**
+ * Roles del sistema (en mayúsculas como en el backend)
+ * @deprecated Usar roleUtils.js en su lugar
+ */
 export const ROLES = {
-  ADMIN: 'admin',
-  COORDINADOR: 'coordinador',
-  DOCENTE: 'docente',
-  AUTORIDAD: 'autoridad',
+  ADMIN: 'ADMIN',
+  DOCENTE: 'DOCENTE',
+  ESTUDIANTE: 'ESTUDIANTE',
 }
 
 export const PERMISSIONS = {

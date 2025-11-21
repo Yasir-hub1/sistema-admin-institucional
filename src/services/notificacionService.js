@@ -29,7 +29,14 @@ export const notificacionService = {
         }
       }
     } catch (error) {
-      console.error('Error en notificacionService.getNotificaciones:', error)
+      // No loguear errores de red/CORS para evitar spam en consola
+      const isNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error'))
+      const isCORSError = error.message?.includes('CORS') || error.message?.includes('blocked')
+      
+      if (!isNetworkError && !isCORSError) {
+        console.error('Error en notificacionService.getNotificaciones:', error)
+      }
+      
       return {
         success: false,
         message: error.response?.data?.message || error.message || 'Error al obtener notificaciones',

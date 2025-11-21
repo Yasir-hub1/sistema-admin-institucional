@@ -23,19 +23,22 @@ const NotificationsDropdown = () => {
   const [noLeidas, setNoLeidas] = useState(0)
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [hasNetworkError, setHasNetworkError] = useState(false)
   const dropdownRef = useRef(null)
   const navigate = useNavigate()
 
   useEffect(() => {
     fetchNotificaciones()
     
-    // Actualizar cada 30 segundos
+    // Actualizar cada 30 segundos solo si no hay errores de red
     const interval = setInterval(() => {
-      fetchNotificaciones()
+      if (!hasNetworkError) {
+        fetchNotificaciones()
+      }
     }, 30000)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [hasNetworkError])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -55,13 +58,28 @@ const NotificationsDropdown = () => {
 
   const fetchNotificaciones = async () => {
     try {
+      setLoading(true)
       const result = await notificacionService.getNotificaciones({ per_page: 5 })
       if (result.success) {
         setNotificaciones(result.data?.data || [])
         setNoLeidas(result.noLeidas || 0)
+        setHasNetworkError(false) // Resetear el flag si la petición fue exitosa
+      } else {
+        // Si hay un error pero no es de red, no marcar como error de red
+        const isNetworkError = result.message?.includes('conexión') || result.message?.includes('CORS')
+        setHasNetworkError(isNetworkError)
       }
     } catch (error) {
-      console.error('Error al obtener notificaciones:', error)
+      // Manejar errores silenciosamente para notificaciones
+      const isNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error'))
+      const isCORSError = error.message?.includes('CORS') || error.message?.includes('blocked')
+      
+      if (isNetworkError || isCORSError) {
+        setHasNetworkError(true)
+      }
+      // No loguear errores de red/CORS para evitar spam en consola
+    } finally {
+      setLoading(false)
     }
   }
 

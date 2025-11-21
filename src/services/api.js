@@ -58,27 +58,53 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
     
-    // Log de errores
-    console.error('❌ API Error:', {
-      status: error.response?.status,
-      url: error.config?.url,
-      message: error.message,
-      data: error.response?.data
-    })
+    // Solo loguear errores si no son errores de red/CORS esperados
+    const isNetworkError = !error.response && (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error'))
+    const isCORSError = error.message?.includes('CORS') || error.message?.includes('blocked')
+    
+    // No loguear errores de red/CORS repetidos para evitar spam en consola
+    if (!isNetworkError && !isCORSError) {
+      console.error('❌ API Error:', {
+        status: error.response?.status,
+        url: error.config?.url,
+        message: error.message,
+        data: error.response?.data
+      })
+    }
     
     // Manejar error 401 (No autorizado)
     if (error.response?.status === 401) {
-      // Limpiar token y redirigir al login en caso de 401
-      localStorage.removeItem('token')
-      sessionStorage.clear()
+      // Solo limpiar token si no es una petición de perfil (checkAuth)
+      // El checkAuth manejará la limpieza de sesión si es necesario
+      const isProfileRequest = originalRequest.url?.includes('/auth/perfil')
       
-      // Evitar redirigir si ya estamos en login o si es una petición de login
-      if (!originalRequest.url?.includes('/auth/login') && !window.location.pathname.includes('/login')) {
-        // Limpiar cualquier caché
-        if (window.queryClient) {
-          window.queryClient.clear()
+      if (!isProfileRequest) {
+        // Limpiar token y redirigir al login en caso de 401
+        localStorage.removeItem('token')
+        sessionStorage.clear()
+        
+        // Evitar redirigir si ya estamos en login o si es una petición de login
+        if (!originalRequest.url?.includes('/auth/login') && !originalRequest.url?.includes('/auth/estudiante/login') && !originalRequest.url?.includes('/auth/admin/login') && !window.location.pathname.includes('/login')) {
+          // Limpiar cualquier caché
+          if (window.queryClient) {
+            window.queryClient.clear()
+          }
+          
+          // Redirigir según la ruta actual
+          const currentPath = window.location.pathname
+          if (currentPath.startsWith('/estudiante')) {
+            window.location.href = '/estudiante/login'
+          } else if (currentPath.startsWith('/docente')) {
+            window.location.href = '/docente/login'
+          } else {
+            window.location.href = '/login'
+          }
         }
-        window.location.href = '/login'
+      } else {
+        // Para peticiones de perfil, solo limpiar el token pero no redirigir
+        // El AuthContext manejará la redirección
+        localStorage.removeItem('token')
+        sessionStorage.clear()
       }
       
       return Promise.reject(error)
@@ -87,8 +113,11 @@ api.interceptors.response.use(
     // Manejar otros errores
     const errorMessage = getErrorMessage(error)
     
-    // Mostrar toast de error solo si no es una petición silenciosa
-    if (!originalRequest.silent) {
+    // No mostrar toast para errores de red/CORS en notificaciones (se manejan silenciosamente)
+    const isNotificationsRequest = originalRequest.url?.includes('/notificaciones')
+    const shouldShowToast = !originalRequest.silent && !(isNetworkError && isNotificationsRequest)
+    
+    if (shouldShowToast) {
       toast.error(errorMessage)
     }
     

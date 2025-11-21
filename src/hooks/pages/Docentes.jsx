@@ -17,7 +17,7 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react'
-import { docenteService } from '../services/docenteService'
+import { docenteService } from '../../services/asignacionService'
 import Button from '../components/common/Button'
 import Input from '../components/common/Input'
 import Modal from '../components/common/Modal'

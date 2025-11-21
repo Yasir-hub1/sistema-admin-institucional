@@ -31,7 +31,7 @@ import toast from 'react-hot-toast'
 import { horarioService } from '../services/horarioService'
 import { gestionAcademicaService } from '../services/gestionAcademicaService'
 import { grupoService } from '../services/grupoService'
-import { docenteService } from '../services/docenteService'
+import { docenteService } from '../../services/asignacionService'
 import { aulaService } from '../services/aulaService'
 import { exportToCSV } from '../utils/helpers'
 

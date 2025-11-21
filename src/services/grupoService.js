@@ -27,7 +27,7 @@ export const grupoService = {
         queryParams.activo = params.activo
       }
 
-      const response = await get('/grupos', queryParams)
+      const response = await get('/admin/grupos', queryParams)
       
       if (response.data.success) {
         return {
@@ -51,7 +51,7 @@ export const grupoService = {
 
   async getGrupo(id) {
     try {
-      const response = await get(`/grupos/${id}`)
+      const response = await get(`/admin/grupos/${id}`)
       
       if (response.data.success) {
         return {
@@ -74,7 +74,7 @@ export const grupoService = {
 
   async createGrupo(data) {
     try {
-      const response = await post('/grupos', data)
+      const response = await post('/admin/grupos', data)
       
       if (response.data.success) {
         return {
@@ -100,7 +100,7 @@ export const grupoService = {
 
   async updateGrupo(id, data) {
     try {
-      const response = await put(`/grupos/${id}`, data)
+      const response = await put(`/admin/grupos/${id}`, data)
       
       if (response.data.success) {
         return {
@@ -126,8 +126,8 @@ export const grupoService = {
 
   async deleteGrupo(id) {
     try {
-      const response = await del(`/grupos/${id}`)
-      
+      const response = await del(`/admin/grupos/${id}`)
+
       if (response.data.success) {
         return {
           success: true,
@@ -148,13 +148,41 @@ export const grupoService = {
   },
 
   /**
+   * Obtener datos para formularios (programas, módulos, docentes, horarios)
+   * @returns {Promise<object>} Datos para formularios
+   */
+  async getDatosFormulario() {
+    try {
+      const response = await get('/admin/grupos/datos-formulario')
+
+      if (response.data.success) {
+        return {
+          success: true,
+          data: response.data.data,
+          message: response.data.message
+        }
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Error al obtener datos del formulario'
+        }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Error al obtener datos del formulario'
+      }
+    }
+  },
+
+  /**
    * Obtener grupos por gestión académica
    * @param {number} gestionId - ID de la gestión académica
    * @returns {Promise<object>} Grupos de la gestión
    */
   async getGruposPorGestion(gestionId) {
     try {
-      const response = await get(`/grupos/gestion/${gestionId}`)
+      const response = await get(`/admin/grupos`, { gestion_id: gestionId })
       
       if (response.data.success) {
         return {
@@ -198,7 +226,7 @@ export const grupoService = {
       if (!queryParams.materia_id) delete queryParams.materia_id
       if (queryParams.activo === '') delete queryParams.activo
 
-      const response = await get('/grupos', queryParams)
+      const response = await get('/admin/grupos', queryParams)
       
       if (response.data && response.data.success && response.data.data) {
         return {
@@ -230,7 +258,7 @@ export const grupoService = {
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await upload('/grupos/import', formData)
+      const response = await upload('/admin/grupos/import', formData)
       
       if (response.data.success) {
         return {

@@ -1,4 +1,4 @@
-# Sistema Académico FICCT - Frontend React
+# Sistema Académico ICAP - Frontend React
 
 ## 🚀 Instalación y Configuración
 
@@ -33,7 +33,7 @@ Crear archivo `.env` con las siguientes variables:
 
 ```env
 VITE_API_URL=http://localhost:8000/api
-VITE_APP_NAME=Sistema Académico FICCT
+VITE_APP_NAME=Sistema Académico ICAP
 VITE_APP_VERSION=1.0.0
 VITE_DEBUG_MODE=true
 ```
@@ -243,4 +243,4 @@ Para soporte técnico o reportar bugs, contactar al equipo de desarrollo.
 
 ---
 
-**Desarrollado para la Facultad FICCT** 🎓
+**Desarrollado para la Facultad ICAP** 🎓

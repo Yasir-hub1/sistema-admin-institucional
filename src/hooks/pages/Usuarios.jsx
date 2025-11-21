@@ -14,17 +14,17 @@ import {
   Mail,
   FileSpreadsheet
 } from 'lucide-react'
-import Button from '../components/common/Button'
-import Input from '../components/common/Input'
-import Modal from '../components/common/Modal'
-import Table from '../components/common/Table'
-import Card from '../components/common/Card'
+import Button from '../../components/common/Button'
+import Input from '../../components/common/Input'
+import Modal from '../../components/common/Modal'
+import Table from '../../components/common/Table'
+import Card from '../../components/common/Card'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
-import { userService } from '../services/userService'
-import { roleService } from '../services/roleService'
-import { useAuth } from '../contexts/AuthContext'
-import { exportToCSV } from '../utils/helpers'
+import { userService } from '../../services/userService'
+import { roleService } from '../../services/roleService'
+import { useAuth } from '../../contexts/AuthContext'
+import { exportToCSV } from '../../utils/helpers'
 
 const Usuarios = () => {
   const { user } = useAuth()

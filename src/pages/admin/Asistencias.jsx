@@ -21,20 +21,20 @@ import {
   Smartphone,
   MapPin
 } from 'lucide-react'
-import Button from '../components/common/Button'
-import Input from '../components/common/Input'
-import Modal from '../components/common/Modal'
-import Table from '../components/common/Table'
-import Card from '../components/common/Card'
+import Button from '../../components/common/Button'
+import Input from '../../components/common/Input'
+import Modal from '../../components/common/Modal'
+import Table from '../../components/common/Table'
+import Card from '../../components/common/Card'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
-import { useAuth } from '../contexts/AuthContext'
-import { horarioService } from '../services/horarioService'
-import { docenteService } from '../services/docenteService'
-import { asistenciaService } from '../services/asistenciaService'
-import RegistroGeolocalizacion from '../components/asistencias/RegistroGeolocalizacion'
-import QRScanner from '../components/asistencias/QRScanner'
-import { exportToCSV } from '../utils/helpers'
+import { useAuth } from '../../contexts/AuthContext'
+import { horarioService } from '../../services/horarioService'
+import { docenteService } from '../../services/asignacionService'
+import { asistenciaService } from '../../services/asistenciaService'
+import RegistroGeolocalizacion from '../../components/asistencias/RegistroGeolocalizacion'
+import QRScanner from '../../components/asistencias/QRScanner'
+import { exportToCSV } from '../../utils/helpers'
 
 const Asistencias = () => {
   const { user } = useAuth()

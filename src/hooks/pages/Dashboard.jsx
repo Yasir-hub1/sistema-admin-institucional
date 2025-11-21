@@ -126,7 +126,7 @@ const Dashboard = () => {
               ¡Bienvenido, {user?.name || 'Usuario'}!
             </h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 mt-2">
-              Resumen general del sistema académico FICCT
+              Resumen general del sistema académico ICAP
             </p>
           </div>
         </div>

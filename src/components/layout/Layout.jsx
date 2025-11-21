@@ -21,7 +21,17 @@ import {
   Settings,
   History,
   CalendarDays,
-  Shield
+  Shield,
+  Award,
+  FileText,
+  FileCheck,
+  CreditCard,
+  DollarSign,
+  Globe,
+  Map,
+  MapPin,
+  Building2,
+  Percent
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import NotificationsDropdown from '../common/NotificationsDropdown'
@@ -38,21 +48,83 @@ const Layout = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'coordinador', 'docente', 'autoridad'] },
-    { name: 'Gestiones Académicas', href: '/gestiones-academicas', icon: CalendarDays, roles: ['admin', 'coordinador'] },
-    { name: 'Roles y Permisos', href: '/roles', icon: Shield, roles: ['admin'] },
-    { name: 'Usuarios', href: '/usuarios', icon: Users, roles: ['admin', 'coordinador'] },
-    { name: 'Docentes', href: '/docentes', icon: GraduationCap, roles: ['admin', 'coordinador'] },
-    { name: 'Materias', href: '/materias', icon: BookOpen, roles: ['admin', 'coordinador'] },
-    { name: 'Aulas', href: '/aulas', icon: Building, roles: ['admin', 'coordinador'] },
-    { name: 'Grupos', href: '/grupos', icon: UserCheck, roles: ['admin', 'coordinador'] },
-    { name: 'Horarios', href: '/horarios', icon: Clock, roles: ['admin', 'coordinador', 'docente'] },
-    { name: 'Asistencias', href: '/asistencias', icon: ClipboardList, roles: ['admin', 'coordinador', 'docente'] },
-    { name: 'Reportes', href: '/reportes', icon: BarChart3, roles: ['admin', 'coordinador', 'autoridad'] },
-    { name: 'Notificaciones', href: '/notificaciones', icon: Bell, roles: ['admin', 'coordinador', 'docente'] },
-    { name: 'Auditoría', href: '/auditoria', icon: History, roles: ['admin', 'coordinador'] },
+  // Navegación para ADMIN - Menús simplificados según requerimiento
+  const adminNavigation = [
+    { name: 'Dashboard', href: '/admin/dashboard', icon: Home, roles: ['ADMIN'] },
+    
+    // Configuración inicial del sistema
+    { name: 'Países', href: '/admin/paises', icon: Globe, roles: ['ADMIN'] },
+    { name: 'Provincias', href: '/admin/provincias', icon: Map, roles: ['ADMIN'] },
+    { name: 'Ciudades', href: '/admin/ciudades', icon: MapPin, roles: ['ADMIN'] },
+    { name: 'Instituciones', href: '/admin/instituciones', icon: Building2, roles: ['ADMIN'] },
+    { name: 'Usuarios Sistema', href: '/admin/sistema-usuarios', icon: Shield, roles: ['ADMIN'] },
+    
+    // Gestión de convenios
+    { name: 'Tipos Convenio', href: '/admin/tipo-convenios', icon: FileText, roles: ['ADMIN'] },
+    { name: 'Convenios', href: '/admin/convenios', icon: FileText, roles: ['ADMIN'] },
+    
+    // Planificación académica
+    { name: 'Ramas Académicas', href: '/admin/ramas-academicas', icon: GraduationCap, roles: ['ADMIN'] },
+    { name: 'Versiones', href: '/admin/versiones', icon: CalendarDays, roles: ['ADMIN'] },
+    { name: 'Tipos Programa', href: '/admin/tipos-programa', icon: BookOpen, roles: ['ADMIN'] },
+    { name: 'Módulos', href: '/admin/modulos', icon: BookOpen, roles: ['ADMIN'] },
+    { name: 'Programas', href: '/admin/programas', icon: BookOpen, roles: ['ADMIN'] },
+    
+    // Asignación de docentes y grupos
+    { name: 'Docentes', href: '/admin/docentes', icon: UserCheck, roles: ['ADMIN'] },
+    { name: 'Horarios', href: '/admin/horarios', icon: Clock, roles: ['ADMIN'] },
+    { name: 'Grupos', href: '/admin/grupos', icon: Users, roles: ['ADMIN'] },
+    
+    // Gestión académica
+    { name: 'Estudiantes', href: '/admin/estudiantes', icon: GraduationCap, roles: ['ADMIN'] },
+    { name: 'Inscripciones', href: '/admin/inscripciones', icon: ClipboardList, roles: ['ADMIN'] },
+    
+    // Planes y políticas de pago
+    { name: 'Planes de Pago', href: '/admin/planes-pago', icon: CreditCard, roles: ['ADMIN'] },
+    { name: 'Descuentos', href: '/admin/descuentos', icon: Percent, roles: ['ADMIN'] },
+    { name: 'Gestión de Pagos', href: '/admin/gestion-pagos', icon: DollarSign, roles: ['ADMIN'] },
+    { name: 'Pagos', href: '/admin/pagos', icon: CreditCard, roles: ['ADMIN'] },
+    
+    // Verificación documental
+    { name: 'Validación Documentos', href: '/admin/documentos', icon: FileCheck, roles: ['ADMIN'] },
+    { name: 'Tipos Documento', href: '/admin/tipos-documento', icon: FileText, roles: ['ADMIN'] },
+    
+    { name: 'Reportes', href: '/admin/reportes', icon: BarChart3, roles: ['ADMIN'] },
   ]
+
+  // Navegación para DOCENTE
+  const docenteNavigation = [
+    { name: 'Dashboard', href: '/docente/dashboard', icon: Home, roles: ['DOCENTE'] },
+    { name: 'Horarios', href: '/docente/horarios', icon: Clock, roles: ['DOCENTE'] },
+    { name: 'Asistencias', href: '/docente/asistencias', icon: ClipboardList, roles: ['DOCENTE'] },
+    { name: 'Grupos', href: '/docente/grupos', icon: UserCheck, roles: ['DOCENTE'] },
+    { name: 'Notificaciones', href: '/docente/notificaciones', icon: Bell, roles: ['DOCENTE'] },
+  ]
+
+  // Navegación para ESTUDIANTE
+  const estudianteNavigation = [
+    { name: 'Dashboard', href: '/estudiante/dashboard', icon: Home, roles: ['ESTUDIANTE'] },
+    { name: 'Inscripciones', href: '/estudiante/inscripciones', icon: GraduationCap, roles: ['ESTUDIANTE'] },
+    { name: 'Mis Materias', href: '/estudiante/materias', icon: BookOpen, roles: ['ESTUDIANTE'] },
+    { name: 'Mis Notas', href: '/estudiante/notas', icon: Award, roles: ['ESTUDIANTE'] },
+    { name: 'Mis Documentos', href: '/estudiante/mis-documentos', icon: FileText, roles: ['ESTUDIANTE'] },
+    { name: 'Mis Pagos', href: '/estudiante/mis-pagos', icon: CreditCard, roles: ['ESTUDIANTE'] },
+  ]
+
+  // Determinar qué navegación usar según el rol
+  const getNavigation = () => {
+    const normalizedRole = user?.rol?.toUpperCase()
+    if (normalizedRole === 'ESTUDIANTE') {
+      return estudianteNavigation
+    } else if (normalizedRole === 'DOCENTE') {
+      return docenteNavigation
+    } else if (normalizedRole === 'ADMIN') {
+      return adminNavigation
+    }
+    return adminNavigation // Por defecto
+  }
+
+  const navigation = getNavigation()
 
   const isActive = (href) => {
     return location.pathname === href || location.pathname.startsWith(href + '/')
@@ -60,12 +132,18 @@ const Layout = () => {
 
   const handleLogout = async () => {
     await logout()
-    navigate('/login')
+    // Redirigir según el rol
+    const normalizedRole = user?.rol?.toUpperCase()
+    if (normalizedRole === 'ESTUDIANTE') {
+      navigate('/estudiante/login')
+    } else if (normalizedRole === 'DOCENTE') {
+      navigate('/docente/login')
+    } else {
+      navigate('/login')
+    }
   }
 
-  const filteredNavigation = user?.rol 
-    ? navigation.filter(item => !item.roles || item.roles.includes(user.rol))
-    : navigation // Mostrar todos los elementos si no hay usuario autenticado
+  const filteredNavigation = navigation
 
   const closeSidebar = () => setSidebarOpen(false)
 
@@ -172,6 +250,49 @@ const Layout = () => {
           label: 'Gestiones Académicas',
           getDisplayName: (item) => item.nombre || `${item.anio || item.año || ''} - ${item.periodo || ''}`.trim() || 'Sin nombre',
           getSubtitle: (item) => `${item.anio || item.año || ''} ${item.periodo || ''}`.trim() || ''
+        },
+        { 
+          name: 'paises', 
+          route: '/admin/paises', 
+          icon: Globe,
+          label: 'Países',
+          getDisplayName: (item) => item.nombre_pais || 'Sin nombre',
+          getSubtitle: (item) => item.codigo_iso || item.codigo_telefono || ''
+        },
+        { 
+          name: 'provincias', 
+          route: '/admin/provincias', 
+          icon: Map,
+          label: 'Provincias',
+          getDisplayName: (item) => item.nombre_provincia || 'Sin nombre',
+          getSubtitle: (item) => item.pais?.nombre_pais || item.codigo_provincia || ''
+        },
+        { 
+          name: 'ciudades', 
+          route: '/admin/ciudades', 
+          icon: MapPin,
+          label: 'Ciudades',
+          getDisplayName: (item) => item.nombre_ciudad || 'Sin nombre',
+          getSubtitle: (item) => item.provincia?.nombre_provincia || item.codigo_postal || ''
+        },
+        { 
+          name: 'instituciones', 
+          route: '/admin/instituciones', 
+          icon: Building2,
+          label: 'Instituciones',
+          getDisplayName: (item) => item.nombre || 'Sin nombre',
+          getSubtitle: (item) => item.ciudad?.nombre_ciudad || item.email || ''
+        },
+        { 
+          name: 'sistema-usuarios', 
+          route: '/admin/sistema-usuarios', 
+          icon: Shield,
+          label: 'Usuarios del Sistema',
+          getDisplayName: (item) => {
+            const persona = item.persona || {}
+            return `${persona.nombre || ''} ${persona.apellido || ''}`.trim() || item.email || 'Sin nombre'
+          },
+          getSubtitle: (item) => item.email || item.rol?.nombre_rol || ''
         }
       ]
 
@@ -183,8 +304,26 @@ const Layout = () => {
 
       // Buscar en paralelo en todos los módulos accesibles
       for (const module of accessibleModules) {
+        // Determinar la ruta correcta del API según el módulo
+        let apiRoute = `/${module.name}`
+        if (module.name === 'paises' || module.name === 'provincias' || module.name === 'ciudades' || module.name === 'instituciones') {
+          apiRoute = `/admin/${module.name}`
+        } else if (module.name === 'sistema-usuarios') {
+          apiRoute = '/admin/usuarios'
+        } else if (module.name === 'gestiones-academicas') {
+          apiRoute = '/admin/gestiones-academicas'
+        } else if (module.name === 'docentes') {
+          apiRoute = '/admin/docentes'
+        } else if (module.name === 'grupos') {
+          apiRoute = '/admin/grupos'
+        } else if (module.name === 'horarios') {
+          apiRoute = '/admin/horarios'
+        } else if (module.name === 'asistencias') {
+          apiRoute = '/admin/asistencias'
+        }
+        
         searchPromises.push(
-          api.get(`/${module.name}`, { 
+          api.get(apiRoute, { 
             params: {
               search: cleanTerm, // Enviar término normalizado a minúsculas y limpio
               per_page: 5 
@@ -279,7 +418,7 @@ const Layout = () => {
                 <GraduationCap className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold gradient-text">FICCT Sistema</h1>
+                <h1 className="text-lg font-bold gradient-text">ICAP - UAGRM</h1>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Académico</p>
               </div>
             </div>
@@ -372,7 +511,7 @@ const Layout = () => {
               </div>
             </div>
             <div className="ml-4">
-              <h1 className="text-xl font-bold gradient-text group-hover:scale-105 transition-transform duration-300">FICCT Sistema</h1>
+              <h1 className="text-xl font-bold gradient-text group-hover:scale-105 transition-transform duration-300">ICAP - UAGRM</h1>
               <p className="text-xs text-gray-500 dark:text-gray-400">Académico</p>
             </div>
           </div>
@@ -454,7 +593,7 @@ const Layout = () => {
               <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-accent-500 rounded-lg flex items-center justify-center">
                 <GraduationCap className="h-5 w-5 text-white" />
               </div>
-              <span className="text-lg font-bold gradient-text">FICCT</span>
+              <span className="text-lg font-bold gradient-text">ICAP</span>
             </div>
             <div className="flex items-center space-x-2">
               <button
