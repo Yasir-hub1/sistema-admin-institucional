@@ -19,7 +19,7 @@ export const roleService = {
         sort_order: params.sort_order || 'asc'
       }
 
-      const response = await get('/roles', queryParams)
+      const response = await get('/admin/roles', queryParams)
       
       if (response.data.success) {
         return {
@@ -47,7 +47,7 @@ export const roleService = {
    */
   async getAllRoles() {
     try {
-      const response = await get('/roles/all')
+      const response = await get('/admin/roles/all')
       
       if (response.data.success) {
         return {
@@ -75,7 +75,7 @@ export const roleService = {
    */
   async getRole(id) {
     try {
-      const response = await get(`/roles/${id}`)
+      const response = await get(`/admin/roles/${id}`)
       
       if (response.data.success) {
         return {
@@ -101,7 +101,7 @@ export const roleService = {
    */
   async getPermisos() {
     try {
-      const response = await get('/roles/permisos')
+      const response = await get('/admin/permisos')
       
       if (response.data.success) {
         return {
@@ -123,13 +123,54 @@ export const roleService = {
   },
 
   /**
+   * Obtener permisos agrupados por módulo
+   */
+  async getPermisosAgrupados() {
+    try {
+      const response = await get('/admin/permisos/agrupados')
+      
+      if (response.data.success) {
+        return {
+          success: true,
+          data: response.data.data
+        }
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Error al obtener permisos agrupados'
+        }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Error al obtener permisos agrupados'
+      }
+    }
+  },
+
+  /**
    * Crear nuevo rol
-   * @param {object} data - Datos del rol
+   * @param {object} data - Datos del rol (nombre_rol, descripcion, permisos)
    * @returns {Promise<object>} Rol creado
    */
   async createRole(data) {
     try {
-      const response = await post('/roles', data)
+      // Mapear nombre a nombre_rol si es necesario
+      const datosBackend = {
+        nombre_rol: data.nombre_rol || data.nombre,
+        descripcion: data.descripcion || '',
+        activo: data.activo !== undefined ? data.activo : true
+      }
+      
+      const response = await post('/admin/roles', datosBackend)
+      
+      // Si hay permisos, asignarlos después de crear el rol
+      if (data.permisos && Array.isArray(data.permisos) && data.permisos.length > 0 && response.data.success) {
+        const rolId = response.data.data?.rol_id || response.data.data?.id
+        if (rolId) {
+          await this.asignarPermisos(rolId, data.permisos)
+        }
+      }
       
       if (response.data.success) {
         return {
@@ -157,12 +198,24 @@ export const roleService = {
   /**
    * Actualizar rol
    * @param {number} id - ID del rol
-   * @param {object} data - Datos actualizados
+   * @param {object} data - Datos actualizados (nombre_rol, descripcion, permisos)
    * @returns {Promise<object>} Rol actualizado
    */
   async updateRole(id, data) {
     try {
-      const response = await put(`/roles/${id}`, data)
+      // Mapear nombre a nombre_rol si es necesario
+      const datosBackend = {
+        nombre_rol: data.nombre_rol || data.nombre,
+        descripcion: data.descripcion || '',
+        activo: data.activo !== undefined ? data.activo : true
+      }
+      
+      const response = await put(`/admin/roles/${id}`, datosBackend)
+      
+      // Si hay permisos, asignarlos después de actualizar el rol
+      if (data.permisos && Array.isArray(data.permisos) && data.permisos.length >= 0) {
+        await this.asignarPermisos(id, data.permisos)
+      }
       
       if (response.data.success) {
         return {
@@ -192,7 +245,7 @@ export const roleService = {
    */
   async asignarPermisos(roleId, permisosIds) {
     try {
-      const response = await put(`/roles/${roleId}/permisos`, { permisos: permisosIds })
+      const response = await post(`/admin/roles/${roleId}/permisos`, { permisos: permisosIds })
       
       if (response.data.success) {
         return {
@@ -223,7 +276,7 @@ export const roleService = {
    */
   async deleteRole(id) {
     try {
-      const response = await del(`/roles/${id}`)
+      const response = await del(`/admin/roles/${id}`)
       
       if (response.data.success) {
         return {

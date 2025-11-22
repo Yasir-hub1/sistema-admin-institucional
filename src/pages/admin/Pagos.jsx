@@ -7,6 +7,7 @@ import Table from '../../components/common/Table'
 import Card from '../../components/common/Card'
 import toast from 'react-hot-toast'
 import { verificacionPagoService } from '../../services/verificacionPagoService'
+import { estudianteService } from '../../services/estudianteService'
 import { useDebounce } from '../../hooks/useDebounce'
 
 const Pagos = () => {
@@ -25,21 +26,47 @@ const Pagos = () => {
   const [motivoRechazo, setMotivoRechazo] = useState('')
   const [observacionesAprobar, setObservacionesAprobar] = useState('')
   const [metodoFiltro, setMetodoFiltro] = useState('')
+  const [estudianteFiltro, setEstudianteFiltro] = useState('')
+  const [estudiantes, setEstudiantes] = useState([])
   const [showFiltersModal, setShowFiltersModal] = useState(false)
 
   useEffect(() => {
+    fetchEstudiantes()
+  }, [])
+
+  useEffect(() => {
     fetchPagos()
-  }, [currentPage, perPage, debouncedSearchTerm, metodoFiltro])
+  }, [currentPage, perPage, debouncedSearchTerm, metodoFiltro, estudianteFiltro])
+
+  const fetchEstudiantes = async () => {
+    try {
+      const response = await estudianteService.getEstudiantes({ per_page: 1000 })
+      if (response.success && response.data) {
+        const estudiantesData = response.data.data || response.data
+        setEstudiantes(Array.isArray(estudiantesData) ? estudiantesData : [])
+      }
+    } catch (error) {
+      console.error('Error cargando estudiantes:', error)
+    }
+  }
 
   const fetchPagos = async () => {
     try {
       setLoading(true)
-      const response = await verificacionPagoService.listar({
+      const params = {
         page: currentPage,
         per_page: perPage,
         search: (debouncedSearchTerm && typeof debouncedSearchTerm === 'string' && debouncedSearchTerm.trim()) ? debouncedSearchTerm.trim() : undefined,
-        metodo: metodoFiltro || undefined
-      })
+        metodo: metodoFiltro || undefined,
+        estudiante_id: estudianteFiltro ? String(estudianteFiltro) : undefined
+      }
+      
+      // Debug: verificar que los parámetros se están enviando correctamente
+      if (estudianteFiltro) {
+        console.log('Filtrando por estudiante_id:', estudianteFiltro, 'Tipo:', typeof estudianteFiltro)
+      }
+      
+      const response = await verificacionPagoService.listar(params)
       
       if (response.success) {
         const paginatedData = response.data
@@ -178,7 +205,10 @@ const Pagos = () => {
     const colores = {
       'QR': 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
       'TRANSFERENCIA': 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
-      'EFECTIVO': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+      'EFECTIVO': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
+      'Transferencia': 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
+      'Efectivo': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
+      'Tarjeta': 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
     }
     
     return (
@@ -189,11 +219,12 @@ const Pagos = () => {
   }
 
   const tieneFiltrosActivos = () => {
-    return metodoFiltro !== ''
+    return metodoFiltro !== '' || estudianteFiltro !== ''
   }
 
   const handleLimpiarFiltros = () => {
     setMetodoFiltro('')
+    setEstudianteFiltro('')
     setCurrentPage(1)
   }
 
@@ -296,7 +327,7 @@ const Pagos = () => {
             <CreditCard className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold gradient-text">Gestión de Pagos</h1>
+            <h1 className="text-3xl font-bold gradient-text">Pagos Realizados</h1>
             <p className="text-gray-600 dark:text-gray-400">Verifica y gestiona los pagos de estudiantes</p>
           </div>
         </div>
@@ -377,7 +408,7 @@ const Pagos = () => {
               Filtros
               {tieneFiltrosActivos() && (
                 <span className="ml-2 px-2 py-0.5 bg-primary-500 text-white rounded-full text-xs">
-                  1
+                  {[metodoFiltro, estudianteFiltro].filter(f => f).length}
                 </span>
               )}
             </Button>
@@ -782,9 +813,38 @@ const Pagos = () => {
               }}
             >
               <option value="">Todos los métodos</option>
+              <option value="Transferencia">Transferencia</option>
+              <option value="Efectivo">Efectivo</option>
+              <option value="Tarjeta">Tarjeta</option>
               <option value="QR">QR</option>
-              <option value="TRANSFERENCIA">Transferencia</option>
-              <option value="EFECTIVO">Efectivo</option>
+              <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+              <option value="EFECTIVO">EFECTIVO</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Estudiante
+            </label>
+            <select
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+              value={estudianteFiltro}
+              onChange={(e) => {
+                setEstudianteFiltro(e.target.value)
+                setCurrentPage(1)
+              }}
+            >
+              <option value="">Todos los estudiantes</option>
+              {estudiantes.map((estudiante) => {
+                // Usar siempre el id del estudiante, que es el que se relaciona con inscripcion.estudiante_id
+                const estudianteId = estudiante.id
+                if (!estudianteId) return null
+                return (
+                  <option key={estudianteId} value={estudianteId}>
+                    {estudiante.nombre} {estudiante.apellido} - CI: {estudiante.ci} {estudiante.registro_estudiante ? `(Reg: ${estudiante.registro_estudiante})` : ''}
+                  </option>
+                )
+              })}
             </select>
           </div>
 

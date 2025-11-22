@@ -24,6 +24,7 @@ import Table from '../../components/common/Table'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { estudianteService } from '../../services/estudianteService'
+import { exportToCSV } from '../../utils/helpers'
 
 const Estudiantes = () => {
   const navigate = useNavigate()
@@ -40,6 +41,12 @@ const Estudiantes = () => {
     activos: 0,
     inactivos: 0
   })
+  const [showFilters, setShowFilters] = useState(false)
+  const [filtrosAvanzados, setFiltrosAvanzados] = useState({
+    estado: '',
+    provincia: '',
+    sexo: ''
+  })
 
   const { register, handleSubmit, reset, formState: { errors }, trigger } = useForm({
     mode: 'onChange'
@@ -47,12 +54,28 @@ const Estudiantes = () => {
 
   useEffect(() => {
     fetchEstudiantes()
-  }, [searchTerm])
+  }, [searchTerm, filtrosAvanzados])
 
   const fetchEstudiantes = async () => {
     try {
       setLoading(true)
-      const params = searchTerm ? { search: searchTerm } : {}
+      const params = {}
+      
+      if (searchTerm) {
+        params.search = searchTerm
+      }
+      
+      // Agregar filtros avanzados solo si tienen valor
+      if (filtrosAvanzados.estado !== '') {
+        params.estado = filtrosAvanzados.estado
+      }
+      if (filtrosAvanzados.provincia) {
+        params.provincia = filtrosAvanzados.provincia
+      }
+      if (filtrosAvanzados.sexo !== '') {
+        params.sexo = filtrosAvanzados.sexo
+      }
+      
       const response = await estudianteService.getEstudiantes(params)
       
       if (response.success) {
@@ -161,9 +184,82 @@ const Estudiantes = () => {
     try {
       setLoading(true)
       
+      // Validaciones en JavaScript antes de enviar
+      const errors = []
+      
       // Validar CI
       if (!data.ci || data.ci.trim() === '') {
-        toast.error('El CI es obligatorio')
+        errors.push('El CI es obligatorio')
+      } else if (!/^\d+$/.test(data.ci.trim())) {
+        errors.push('El CI solo debe contener números')
+      } else if (data.ci.trim().length > 20) {
+        errors.push('El CI no puede tener más de 20 caracteres')
+      }
+      
+      // Validar Nombre
+      if (!data.nombre || data.nombre.trim() === '') {
+        errors.push('El nombre es obligatorio')
+      } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(data.nombre.trim())) {
+        errors.push('El nombre solo debe contener letras')
+      } else if (data.nombre.trim().length > 100) {
+        errors.push('El nombre no puede tener más de 100 caracteres')
+      }
+      
+      // Validar Apellido
+      if (!data.apellido || data.apellido.trim() === '') {
+        errors.push('El apellido es obligatorio')
+      } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(data.apellido.trim())) {
+        errors.push('El apellido solo debe contener letras')
+      } else if (data.apellido.trim().length > 100) {
+        errors.push('El apellido no puede tener más de 100 caracteres')
+      }
+      
+      // Validar Celular
+      if (!data.celular || data.celular.trim() === '') {
+        errors.push('El celular es obligatorio')
+      } else if (!/^\d+$/.test(data.celular.trim())) {
+        errors.push('El celular solo debe contener números')
+      } else if (data.celular.trim().length > 20) {
+        errors.push('El celular no puede tener más de 20 caracteres')
+      } else if (data.celular.trim().length < 7) {
+        errors.push('El celular debe tener al menos 7 dígitos')
+      }
+      
+      // Validar Sexo (opcional pero si se proporciona debe ser válido)
+      if (data.sexo && !['M', 'F'].includes(data.sexo)) {
+        errors.push('El sexo debe ser Masculino (M) o Femenino (F)')
+      }
+      
+      // Validar Fecha de Nacimiento (opcional pero si se proporciona debe ser válida)
+      if (data.fecha_nacimiento) {
+        const fechaNac = new Date(data.fecha_nacimiento)
+        const hoy = new Date()
+        if (fechaNac > hoy) {
+          errors.push('La fecha de nacimiento no puede ser mayor a la fecha actual')
+        }
+        // Validar que no sea menor de 10 años (opcional, ajustar según necesidad)
+        const edad = hoy.getFullYear() - fechaNac.getFullYear()
+        if (edad < 10) {
+          errors.push('La fecha de nacimiento no es válida (el estudiante debe tener al menos 10 años)')
+        }
+      }
+      
+      // Validar Provincia (opcional pero si se proporciona validar longitud)
+      if (data.provincia && data.provincia.trim().length > 50) {
+        errors.push('La provincia no puede tener más de 50 caracteres')
+      }
+      
+      // Validar Dirección (opcional pero si se proporciona validar longitud)
+      if (data.direccion && data.direccion.trim().length > 255) {
+        errors.push('La dirección no puede tener más de 255 caracteres')
+      }
+      
+      // Si hay errores, mostrarlos y no continuar
+      if (errors.length > 0) {
+        errors.forEach(error => {
+          toast.error(error, { duration: 4000 })
+        })
+        setLoading(false)
         return
       }
 
@@ -171,7 +267,7 @@ const Estudiantes = () => {
         ci: data.ci.trim(),
         nombre: data.nombre.trim(),
         apellido: data.apellido.trim(),
-        celular: data.celular && data.celular.trim() !== '' ? data.celular.trim() : null,
+        celular: data.celular.trim(),
         sexo: data.sexo || null,
         fecha_nacimiento: data.fecha_nacimiento || null,
         direccion: data.direccion ? data.direccion.trim() : null,
@@ -255,6 +351,74 @@ const Estudiantes = () => {
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Error al eliminar estudiante'
       toast.error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleExport = async () => {
+    try {
+      setLoading(true)
+      
+      // Obtener todos los estudiantes con los filtros aplicados
+      const params = {}
+      if (searchTerm) {
+        params.search = searchTerm
+      }
+      if (filtrosAvanzados.estado !== '') {
+        params.estado = filtrosAvanzados.estado
+      }
+      if (filtrosAvanzados.provincia) {
+        params.provincia = filtrosAvanzados.provincia
+      }
+      if (filtrosAvanzados.sexo !== '') {
+        params.sexo = filtrosAvanzados.sexo
+      }
+      // Obtener todos sin paginación para exportar
+      params.per_page = 10000
+      params.page = 1
+      
+      const response = await estudianteService.getEstudiantes(params)
+      
+      if (response.success && response.data) {
+        let estudiantesData = []
+        
+        // Manejar paginación
+        if (response.data.data && Array.isArray(response.data.data)) {
+          estudiantesData = response.data.data
+        } else if (Array.isArray(response.data)) {
+          estudiantesData = response.data
+        }
+        
+        if (estudiantesData.length === 0) {
+          toast.error('No hay estudiantes para exportar')
+          return
+        }
+        
+        const datosExportar = estudiantesData.map(estudiante => ({
+          'Registro': estudiante.registro_estudiante || estudiante.id || '',
+          'CI': estudiante.ci || '',
+          'Nombre': estudiante.nombre || '',
+          'Apellido': estudiante.apellido || '',
+          'Email': estudiante.email || 'N/A',
+          'Celular': estudiante.celular || 'N/A',
+          'Sexo': estudiante.sexo === 'M' ? 'Masculino' : estudiante.sexo === 'F' ? 'Femenino' : 'N/A',
+          'Fecha Nacimiento': estudiante.fecha_nacimiento ? new Date(estudiante.fecha_nacimiento).toLocaleDateString('es-ES') : 'N/A',
+          'Provincia': estudiante.provincia || 'N/A',
+          'Dirección': estudiante.direccion || 'N/A',
+          'Estado': estudiante.activo !== false && estudiante.estado !== 'Inactivo' ? 'Activo' : 'Inactivo',
+          'Fecha Inscripción': estudiante.fecha_inscripcion ? new Date(estudiante.fecha_inscripcion).toLocaleDateString('es-ES') : 'N/A'
+        }))
+        
+        exportToCSV(datosExportar, `estudiantes_${new Date().toISOString().split('T')[0]}.csv`)
+        toast.success(`Se exportaron ${datosExportar.length} estudiantes exitosamente`)
+      } else {
+        toast.error(response.message || 'Error al exportar estudiantes: No se recibieron datos válidos')
+        console.error('Error en exportación:', response)
+      }
+    } catch (error) {
+      console.error('Error al exportar estudiantes:', error)
+      toast.error(error.response?.data?.message || error.message || 'Error al exportar estudiantes')
     } finally {
       setLoading(false)
     }
@@ -481,13 +645,81 @@ const Estudiantes = () => {
               className="pl-10"
             />
           </div>
-          <Button variant="outline" icon={<Filter className="h-5 w-5" />}>
+          <Button 
+            variant="outline" 
+            icon={<Filter className="h-5 w-5" />}
+            onClick={() => setShowFilters(!showFilters)}
+          >
             Filtros
           </Button>
-          <Button variant="outline" icon={<Download className="h-5 w-5" />}>
+          <Button 
+            variant="outline" 
+            icon={<Download className="h-5 w-5" />}
+            onClick={handleExport}
+            disabled={loading}
+          >
             Exportar
           </Button>
         </div>
+
+        {/* Panel de filtros avanzados */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Estado
+                </label>
+                <select
+                  value={filtrosAvanzados.estado}
+                  onChange={(e) => setFiltrosAvanzados(prev => ({ ...prev, estado: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary-500 dark:text-gray-100"
+                >
+                  <option value="">Todos</option>
+                  <option value="activo">Activos</option>
+                  <option value="inactivo">Inactivos</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Sexo
+                </label>
+                <select
+                  value={filtrosAvanzados.sexo}
+                  onChange={(e) => setFiltrosAvanzados(prev => ({ ...prev, sexo: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary-500 dark:text-gray-100"
+                >
+                  <option value="">Todos</option>
+                  <option value="M">Masculino</option>
+                  <option value="F">Femenino</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Provincia
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Filtrar por provincia..."
+                  value={filtrosAvanzados.provincia}
+                  onChange={(e) => setFiltrosAvanzados(prev => ({ ...prev, provincia: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFiltrosAvanzados({ estado: '', provincia: '', sexo: '' })
+                  fetchEstudiantes()
+                }}
+              >
+                Limpiar Filtros
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Tabla de estudiantes */}
@@ -517,7 +749,7 @@ const Estudiantes = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                CI *
+                CI <span className="text-error-500">*</span>
               </label>
               <Input
                 type="text"
@@ -564,7 +796,7 @@ const Estudiantes = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Nombre *
+                Nombre <span className="text-error-500">*</span>
               </label>
               <Input
                 type="text"
@@ -590,7 +822,7 @@ const Estudiantes = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Apellido *
+                Apellido <span className="text-error-500">*</span>
               </label>
               <Input
                 type="text"
@@ -618,7 +850,7 @@ const Estudiantes = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Celular *
+                Celular <span className="text-error-500">*</span>
               </label>
               <Input
                 type="text"
@@ -627,6 +859,10 @@ const Estudiantes = () => {
                   pattern: {
                     value: /^\d+$/,
                     message: 'El celular solo debe contener números'
+                  },
+                  minLength: {
+                    value: 7,
+                    message: 'El celular debe tener al menos 7 dígitos'
                   },
                   maxLength: {
                     value: 20,
@@ -674,7 +910,26 @@ const Estudiantes = () => {
               </label>
               <Input
                 type="date"
-                {...register('fecha_nacimiento')}
+                {...register('fecha_nacimiento', {
+                  validate: (value) => {
+                    if (value) {
+                      const fechaNac = new Date(value)
+                      const hoy = new Date()
+                      if (fechaNac > hoy) {
+                        return 'La fecha de nacimiento no puede ser mayor a la fecha actual'
+                      }
+                      // Validar que no sea menor de 10 años
+                      const edad = hoy.getFullYear() - fechaNac.getFullYear()
+                      const mesDiff = hoy.getMonth() - fechaNac.getMonth()
+                      const diaDiff = hoy.getDate() - fechaNac.getDate()
+                      const edadReal = mesDiff < 0 || (mesDiff === 0 && diaDiff < 0) ? edad - 1 : edad
+                      if (edadReal < 10) {
+                        return 'El estudiante debe tener al menos 10 años'
+                      }
+                    }
+                    return true
+                  }
+                })}
                 error={errors.fecha_nacimiento?.message}
                 max={new Date().toISOString().split('T')[0]}
               />

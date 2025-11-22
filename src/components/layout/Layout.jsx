@@ -34,6 +34,7 @@ import {
   Percent
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import NotificationsDropdown from '../common/NotificationsDropdown'
 import api from '../../services/api'
 
@@ -46,50 +47,53 @@ const Layout = () => {
   const searchRef = useRef(null)
   const location = useLocation()
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user, logout, hasPermission } = useAuth()
 
-  // Navegación para ADMIN - Menús simplificados según requerimiento
+  // Navegación para ADMIN - Menús simplificados según requerimiento con permisos
   const adminNavigation = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: Home, roles: ['ADMIN'] },
+    { name: 'Dashboard', href: '/admin/dashboard', icon: Home, roles: ['ADMIN'], permiso: null }, // Dashboard siempre visible para admin
     
     // Configuración inicial del sistema
-    { name: 'Países', href: '/admin/paises', icon: Globe, roles: ['ADMIN'] },
-    { name: 'Provincias', href: '/admin/provincias', icon: Map, roles: ['ADMIN'] },
-    { name: 'Ciudades', href: '/admin/ciudades', icon: MapPin, roles: ['ADMIN'] },
-    { name: 'Instituciones', href: '/admin/instituciones', icon: Building2, roles: ['ADMIN'] },
-    { name: 'Usuarios Sistema', href: '/admin/sistema-usuarios', icon: Shield, roles: ['ADMIN'] },
+    { name: 'Países', href: '/admin/paises', icon: Globe, roles: ['ADMIN'], permiso: 'configuracion_ver' },
+    { name: 'Provincias', href: '/admin/provincias', icon: Map, roles: ['ADMIN'], permiso: 'configuracion_ver' },
+    { name: 'Ciudades', href: '/admin/ciudades', icon: MapPin, roles: ['ADMIN'], permiso: 'configuracion_ver' },
+    { name: 'Instituciones', href: '/admin/instituciones', icon: Building2, roles: ['ADMIN'], permiso: 'configuracion_ver' },
+    { name: 'Usuarios Sistema', href: '/admin/sistema-usuarios', icon: Shield, roles: ['ADMIN'], permiso: 'usuarios_ver' },
+    { name: 'Roles y Permisos', href: '/admin/roles', icon: Shield, roles: ['ADMIN'], permiso: 'roles_ver' },
     
     // Gestión de convenios
-    { name: 'Tipos Convenio', href: '/admin/tipo-convenios', icon: FileText, roles: ['ADMIN'] },
-    { name: 'Convenios', href: '/admin/convenios', icon: FileText, roles: ['ADMIN'] },
+    { name: 'Tipos Convenio', href: '/admin/tipo-convenios', icon: FileText, roles: ['ADMIN'], permiso: 'convenios_ver' },
+    { name: 'Convenios', href: '/admin/convenios', icon: FileText, roles: ['ADMIN'], permiso: 'convenios_ver' },
     
     // Planificación académica
-    { name: 'Ramas Académicas', href: '/admin/ramas-academicas', icon: GraduationCap, roles: ['ADMIN'] },
-    { name: 'Versiones', href: '/admin/versiones', icon: CalendarDays, roles: ['ADMIN'] },
-    { name: 'Tipos Programa', href: '/admin/tipos-programa', icon: BookOpen, roles: ['ADMIN'] },
-    { name: 'Módulos', href: '/admin/modulos', icon: BookOpen, roles: ['ADMIN'] },
-    { name: 'Programas', href: '/admin/programas', icon: BookOpen, roles: ['ADMIN'] },
+    { name: 'Ramas Académicas', href: '/admin/ramas-academicas', icon: GraduationCap, roles: ['ADMIN'], permiso: 'programas_ver' },
+    { name: 'Versiones', href: '/admin/versiones', icon: CalendarDays, roles: ['ADMIN'], permiso: 'programas_ver' },
+    { name: 'Tipos Programa', href: '/admin/tipos-programa', icon: BookOpen, roles: ['ADMIN'], permiso: 'programas_ver' },
+    { name: 'Módulos', href: '/admin/modulos', icon: BookOpen, roles: ['ADMIN'], permiso: 'programas_ver' },
+    { name: 'Programas', href: '/admin/programas', icon: BookOpen, roles: ['ADMIN'], permiso: 'programas_ver' },
     
     // Asignación de docentes y grupos
-    { name: 'Docentes', href: '/admin/docentes', icon: UserCheck, roles: ['ADMIN'] },
-    { name: 'Horarios', href: '/admin/horarios', icon: Clock, roles: ['ADMIN'] },
-    { name: 'Grupos', href: '/admin/grupos', icon: Users, roles: ['ADMIN'] },
+    { name: 'Docentes', href: '/admin/docentes', icon: UserCheck, roles: ['ADMIN'], permiso: 'docentes_ver' },
+    { name: 'Horarios', href: '/admin/horarios', icon: Clock, roles: ['ADMIN'], permiso: 'grupos_ver' },
+    { name: 'Grupos', href: '/admin/grupos', icon: Users, roles: ['ADMIN'], permiso: 'grupos_ver' },
     
     // Gestión académica
-    { name: 'Estudiantes', href: '/admin/estudiantes', icon: GraduationCap, roles: ['ADMIN'] },
-    { name: 'Inscripciones', href: '/admin/inscripciones', icon: ClipboardList, roles: ['ADMIN'] },
+    { name: 'Estudiantes', href: '/admin/estudiantes', icon: GraduationCap, roles: ['ADMIN'], permiso: 'estudiantes_ver' },
+    { name: 'Inscripciones', href: '/admin/inscripciones', icon: ClipboardList, roles: ['ADMIN'], permiso: 'inscripciones_ver' },
     
     // Planes y políticas de pago
-    { name: 'Planes de Pago', href: '/admin/planes-pago', icon: CreditCard, roles: ['ADMIN'] },
-    { name: 'Descuentos', href: '/admin/descuentos', icon: Percent, roles: ['ADMIN'] },
-    { name: 'Gestión de Pagos', href: '/admin/gestion-pagos', icon: DollarSign, roles: ['ADMIN'] },
-    { name: 'Pagos', href: '/admin/pagos', icon: CreditCard, roles: ['ADMIN'] },
+    { name: 'Planes de Pago', href: '/admin/planes-pago', icon: CreditCard, roles: ['ADMIN'], permiso: 'pagos_ver' },
+    { name: 'Descuentos', href: '/admin/descuentos', icon: Percent, roles: ['ADMIN'], permiso: 'pagos_ver' },
+    { name: 'Gestión de Pagos', href: '/admin/gestion-pagos', icon: DollarSign, roles: ['ADMIN'], permiso: 'pagos_ver' },
+    { name: 'Pagos', href: '/admin/pagos', icon: CreditCard, roles: ['ADMIN'], permiso: 'pagos_ver' },
     
     // Verificación documental
-    { name: 'Validación Documentos', href: '/admin/documentos', icon: FileCheck, roles: ['ADMIN'] },
-    { name: 'Tipos Documento', href: '/admin/tipos-documento', icon: FileText, roles: ['ADMIN'] },
+    { name: 'Validación Documentos', href: '/admin/documentos', icon: FileCheck, roles: ['ADMIN'], permiso: 'documentos_ver' },
+    { name: 'Tipos Documento', href: '/admin/tipos-documento', icon: FileText, roles: ['ADMIN'], permiso: 'documentos_ver' },
     
-    { name: 'Reportes', href: '/admin/reportes', icon: BarChart3, roles: ['ADMIN'] },
+    { name: 'Reportes', href: '/admin/reportes', icon: BarChart3, roles: ['ADMIN'], permiso: null }, // Reportes siempre visible para admin
+    { name: 'Bitácora', href: '/admin/bitacora', icon: History, roles: ['ADMIN'], permiso: 'bitacora_ver' },
+    { name: 'Notificaciones', href: '/admin/notificaciones', icon: Bell, roles: ['ADMIN'], permiso: null },
   ]
 
   // Navegación para DOCENTE
@@ -109,6 +113,7 @@ const Layout = () => {
     { name: 'Mis Notas', href: '/estudiante/notas', icon: Award, roles: ['ESTUDIANTE'] },
     { name: 'Mis Documentos', href: '/estudiante/mis-documentos', icon: FileText, roles: ['ESTUDIANTE'] },
     { name: 'Mis Pagos', href: '/estudiante/mis-pagos', icon: CreditCard, roles: ['ESTUDIANTE'] },
+    { name: 'Notificaciones', href: '/estudiante/notificaciones', icon: Bell, roles: ['ESTUDIANTE'] },
   ]
 
   // Determinar qué navegación usar según el rol
@@ -143,7 +148,19 @@ const Layout = () => {
     }
   }
 
-  const filteredNavigation = navigation
+  // Filtrar navegación según permisos del usuario
+  const filteredNavigation = navigation.filter(item => {
+    // Si no tiene permiso definido, siempre mostrar (ej: Dashboard, Reportes)
+    if (!item.permiso) return true
+    
+    // Si es ADMIN, tiene acceso a todo automáticamente
+    if (user?.rol?.toUpperCase() === 'ADMIN') {
+      return true
+    }
+    
+    // Para otros roles, verificar permiso específico usando el nombre completo del permiso
+    return hasPermission(item.permiso)
+  })
 
   const closeSidebar = () => setSidebarOpen(false)
 

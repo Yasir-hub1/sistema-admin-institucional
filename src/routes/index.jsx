@@ -31,6 +31,7 @@ import Versiones from '../pages/admin/Versiones'
 import TiposPrograma from '../pages/admin/TiposPrograma'
 import Modulos from '../pages/admin/Modulos'
 import Roles from '../pages/admin/Roles'
+import Bitacora from '../pages/admin/Bitacora'
 import Docentes from '../pages/admin/Docentes'
 import Horarios from '../pages/admin/Horarios'
 import Estudiantes from '../pages/admin/Estudiantes'
@@ -139,6 +140,28 @@ const AppRoutes = () => {
         } 
       />
       
+      {/* Ruta de notificaciones genérica - redirige según el rol del usuario */}
+      <Route 
+        path="/notificaciones" 
+        element={
+          isAuthenticated && user ? (
+            (() => {
+              const userRole = normalizeRole(user?.rol)
+              if (userRole === ROLES.ADMIN) {
+                return <Navigate to="/admin/notificaciones" replace />
+              } else if (userRole === ROLES.DOCENTE) {
+                return <Navigate to="/docente/notificaciones" replace />
+              } else if (userRole === ROLES.ESTUDIANTE) {
+                return <Navigate to="/estudiante/notificaciones" replace />
+              }
+              return <Navigate to="/login" replace />
+            })()
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        } 
+      />
+      
       {/* Ruta de perfil genérica - redirige según el rol del usuario */}
       <Route 
         path="/perfil" 
@@ -193,6 +216,16 @@ const AppRoutes = () => {
           element={
             <RoleBasedRoute allowedRoles={['ADMIN']}>
               <Roles />
+            </RoleBasedRoute>
+          } 
+        />
+        
+        {/* Bitácora del sistema - Solo ADMIN */}
+        <Route 
+          path="bitacora" 
+          element={
+            <RoleBasedRoute allowedRoles={['ADMIN']}>
+              <Bitacora />
             </RoleBasedRoute>
           } 
         />
@@ -621,6 +654,16 @@ const AppRoutes = () => {
         <Route path="pagos" element={<EstudiantePagos />} />
         <Route path="mis-pagos" element={<MisPagos />} />
         <Route path="inscripciones" element={<InscripcionesEstudiante />} />
+        
+        {/* Notificaciones - ESTUDIANTE */}
+        <Route 
+          path="notificaciones" 
+          element={
+            <RoleBasedRoute allowedRoles={['ESTUDIANTE']}>
+              <Notificaciones />
+            </RoleBasedRoute>
+          } 
+        />
         
         {/* Perfil de usuario - ESTUDIANTE */}
         <Route path="perfil" element={<Perfil />} />

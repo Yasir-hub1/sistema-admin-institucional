@@ -15,7 +15,7 @@ export const permisoService = {
         modulo: params.modulo || ''
       }
 
-      const response = await get('/permisos', queryParams)
+      const response = await get('/admin/permisos', queryParams)
       
       if (response.data.success) {
         return {
@@ -42,7 +42,7 @@ export const permisoService = {
    */
   async getPermisosPorModulo() {
     try {
-      const response = await get('/permisos/por-modulo')
+      const response = await get('/admin/permisos/agrupados')
       
       if (response.data.success) {
         return {

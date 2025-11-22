@@ -21,6 +21,7 @@ import Modal from '../../components/common/Modal'
 import { adminInscripcionService } from '../../services/adminInscripcionService'
 import { programaService } from '../../services/planificacionService'
 import { estudianteService } from '../../services/estudianteService'
+import { exportToCSV } from '../../utils/helpers'
 import toast from 'react-hot-toast'
 import { X } from 'lucide-react'
 
@@ -183,6 +184,87 @@ const Inscripciones = () => {
 
   const tieneFiltrosActivos = () => {
     return filtros.fecha_inicio || filtros.fecha_fin || filtros.programa_id || filtros.estudiante_id
+  }
+
+  const handleExport = async () => {
+    try {
+      setLoading(true)
+      
+      // Obtener todas las inscripciones con los filtros aplicados
+      const params = {}
+      if (searchTerm && searchTerm.trim() !== '') {
+        params.search = searchTerm.trim()
+      }
+      // Agregar filtros
+      if (filtros.fecha_inicio) {
+        params.fecha_inicio = filtros.fecha_inicio
+      }
+      if (filtros.fecha_fin) {
+        params.fecha_fin = filtros.fecha_fin
+      }
+      if (filtros.programa_id) {
+        params.programa_id = filtros.programa_id
+      }
+      if (filtros.estudiante_id) {
+        params.estudiante_id = filtros.estudiante_id
+      }
+      // Obtener todos sin paginación para exportar
+      params.per_page = 10000
+      params.page = 1
+      
+      const response = await adminInscripcionService.getInscripciones(params)
+      
+      if (response.success && response.data) {
+        let inscripcionesData = []
+        
+        // Manejar paginación
+        if (response.data.data && Array.isArray(response.data.data)) {
+          inscripcionesData = response.data.data
+        } else if (Array.isArray(response.data)) {
+          inscripcionesData = response.data
+        }
+        
+        if (inscripcionesData.length === 0) {
+          toast.error('No hay inscripciones para exportar')
+          return
+        }
+        
+        const datosExportar = inscripcionesData.map(inscripcion => ({
+          'ID': inscripcion.id || '',
+          'Fecha': inscripcion.fecha_formatted || (inscripcion.fecha ? new Date(inscripcion.fecha).toLocaleDateString('es-ES') : 'N/A'),
+          'Registro Estudiante': inscripcion.estudiante?.registro_estudiante || 'N/A',
+          'CI Estudiante': inscripcion.estudiante?.ci || 'N/A',
+          'Nombre Estudiante': inscripcion.estudiante?.nombre || 'N/A',
+          'Apellido Estudiante': inscripcion.estudiante?.apellido || 'N/A',
+          'Email Estudiante': inscripcion.estudiante?.email || 'N/A',
+          'Celular Estudiante': inscripcion.estudiante?.celular || 'N/A',
+          'Programa': inscripcion.programa?.nombre || 'N/A',
+          'Institución': inscripcion.programa?.institucion || 'N/A',
+          'Rama Académica': inscripcion.programa?.rama_academica || 'N/A',
+          'Tipo Programa': inscripcion.programa?.tipo_programa || 'N/A',
+          'Costo Programa': inscripcion.programa?.costo ? `$${inscripcion.programa.costo.toLocaleString('es-ES')}` : 'N/A',
+          'Duración (meses)': inscripcion.programa?.duracion_meses || 'N/A',
+          'Monto Total Plan': inscripcion.plan_pago?.monto_total ? `$${inscripcion.plan_pago.monto_total.toLocaleString('es-ES')}` : 'N/A',
+          'Monto Pagado': inscripcion.plan_pago?.monto_pagado ? `$${inscripcion.plan_pago.monto_pagado.toLocaleString('es-ES')}` : 'N/A',
+          'Monto Pendiente': inscripcion.plan_pago?.monto_pendiente ? `$${inscripcion.plan_pago.monto_pendiente.toLocaleString('es-ES')}` : 'N/A',
+          'Total Cuotas': inscripcion.plan_pago?.total_cuotas || 'N/A',
+          'Cuotas Pagadas': inscripcion.estado_pagos?.cuotas_pagadas || 0,
+          'Porcentaje Pagado': inscripcion.estado_pagos?.porcentaje_pagado ? `${inscripcion.estado_pagos.porcentaje_pagado.toFixed(2)}%` : '0%',
+          'Descuento': inscripcion.descuento ? `${inscripcion.descuento.nombre} (${inscripcion.descuento.descuento}%)` : 'Sin descuento'
+        }))
+        
+        exportToCSV(datosExportar, `inscripciones_${new Date().toISOString().split('T')[0]}.csv`)
+        toast.success(`Se exportaron ${datosExportar.length} inscripciones exitosamente`)
+      } else {
+        toast.error(response.message || 'Error al exportar inscripciones: No se recibieron datos válidos')
+        console.error('Error en exportación:', response)
+      }
+    } catch (error) {
+      console.error('Error al exportar inscripciones:', error)
+      toast.error(error.response?.data?.message || error.message || 'Error al exportar inscripciones')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const columns = [
@@ -417,7 +499,12 @@ const Inscripciones = () => {
           >
             Filtros {tieneFiltrosActivos() && `(${Object.values(filtros).filter(f => f).length})`}
           </Button>
-          <Button variant="outline" icon={<Download className="h-5 w-5" />}>
+          <Button 
+            variant="outline" 
+            icon={<Download className="h-5 w-5" />}
+            onClick={handleExport}
+            disabled={loading}
+          >
             Exportar
           </Button>
         </div>

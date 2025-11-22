@@ -54,12 +54,53 @@ const Roles = () => {
       const response = await roleService.getRoles({
         page: currentPage,
         per_page: perPage,
-        search: searchTerm
+        search: searchTerm,
+        sort_by: 'nombre_rol',
+        sort_order: 'asc'
       })
       
       if (response.success && response.data) {
-        setRoles(response.data.data || [])
-        setTotalPages(response.data.last_page || 1)
+        // El backend ahora devuelve un objeto de paginación de Laravel
+        const paginationData = response.data
+        
+        // Verificar si es un objeto de paginación de Laravel
+        if (paginationData.data && Array.isArray(paginationData.data)) {
+          // Es un objeto de paginación
+          const rolesData = paginationData.data
+          
+          // Mapear campos del backend al frontend
+          const rolesMapeados = rolesData.map(rol => ({
+            id: rol.id || rol.rol_id,
+            nombre: rol.nombre_rol || rol.nombre,
+            nombre_rol: rol.nombre_rol || rol.nombre,
+            descripcion: rol.descripcion || '',
+            activo: rol.activo !== undefined ? rol.activo : true,
+            users_count: rol.usuarios_count || rol.users_count || 0,
+            permisos_count: rol.permisos?.length || rol.permisos_count || 0,
+            permisos: rol.permisos || []
+          }))
+          
+          setRoles(rolesMapeados)
+          setTotalPages(paginationData.last_page || 1)
+        } else if (Array.isArray(paginationData)) {
+          // Fallback: si es un array directo (compatibilidad)
+          const rolesMapeados = paginationData.map(rol => ({
+            id: rol.id || rol.rol_id,
+            nombre: rol.nombre_rol || rol.nombre,
+            nombre_rol: rol.nombre_rol || rol.nombre,
+            descripcion: rol.descripcion || '',
+            activo: rol.activo !== undefined ? rol.activo : true,
+            users_count: rol.usuarios_count || rol.users_count || 0,
+            permisos_count: rol.permisos?.length || rol.permisos_count || 0,
+            permisos: rol.permisos || []
+          }))
+          
+          setRoles(rolesMapeados)
+          setTotalPages(1)
+        } else {
+          setRoles([])
+          setTotalPages(1)
+        }
       } else {
         toast.error(response.message || 'Error al cargar roles')
         setRoles([])
@@ -77,31 +118,124 @@ const Roles = () => {
 
   const fetchPermisos = async () => {
     try {
-      const response = await roleService.getPermisos()
+      // Intentar primero con permisos agrupados
+      const response = await permisoService.getPermisosPorModulo()
       if (response.success && response.data) {
-        const permisosData = Array.isArray(response.data) ? response.data : []
-        setPermisos(permisosData)
-        // Agrupar por módulo
-        const agrupados = permisosData.reduce((acc, permiso) => {
-          if (!acc[permiso.modulo]) {
-            acc[permiso.modulo] = []
+        // El backend devuelve un objeto agrupado por módulo (colección de Laravel)
+        // Normalizar el formato: puede venir como objeto o como colección
+        let permisosAgrupadosData = {}
+        
+        if (Array.isArray(response.data)) {
+          // Si viene como array, agrupar manualmente
+          permisosAgrupadosData = response.data.reduce((acc, permiso) => {
+            const modulo = permiso.modulo || 'otros'
+            if (!acc[modulo]) {
+              acc[modulo] = []
+            }
+            acc[modulo].push({
+              id: permiso.permiso_id || permiso.id,
+              permiso_id: permiso.permiso_id || permiso.id,
+              nombre_permiso: permiso.nombre_permiso,
+              descripcion: permiso.descripcion,
+              modulo: permiso.modulo,
+              accion: permiso.accion,
+              activo: permiso.activo
+            })
+            return acc
+          }, {})
+        } else {
+          // Si viene como objeto agrupado (formato Laravel)
+          Object.keys(response.data).forEach(modulo => {
+            permisosAgrupadosData[modulo] = (response.data[modulo] || []).map(permiso => ({
+              id: permiso.permiso_id || permiso.id,
+              permiso_id: permiso.permiso_id || permiso.id,
+              nombre_permiso: permiso.nombre_permiso,
+              descripcion: permiso.descripcion,
+              modulo: permiso.modulo,
+              accion: permiso.accion,
+              activo: permiso.activo
+            }))
+          })
+        }
+        
+        // Ordenar módulos: primero los principales, luego los demás alfabéticamente
+        const ordenModulos = [
+          'usuarios', 'roles', 'estudiantes', 'inscripciones', 'programas', 
+          'grupos', 'pagos', 'documentos', 'convenios', 'configuracion',
+          'bitacora', 'notificaciones', 'reportes'
+        ]
+        
+        const permisosOrdenados = {}
+        // Primero agregar módulos en el orden especificado
+        ordenModulos.forEach(modulo => {
+          if (permisosAgrupadosData[modulo]) {
+            permisosOrdenados[modulo] = permisosAgrupadosData[modulo]
           }
-          acc[permiso.modulo].push(permiso)
-          return acc
-        }, {})
-        setPermisosAgrupados(agrupados)
+        })
+        // Luego agregar los módulos restantes alfabéticamente
+        Object.keys(permisosAgrupadosData)
+          .filter(modulo => !ordenModulos.includes(modulo))
+          .sort()
+          .forEach(modulo => {
+            permisosOrdenados[modulo] = permisosAgrupadosData[modulo]
+          })
+        
+        setPermisosAgrupados(permisosOrdenados)
+        // Aplanar para tener lista completa
+        const todosPermisos = Object.values(permisosOrdenados).flat()
+        setPermisos(todosPermisos)
+      } else {
+        // Fallback: obtener todos los permisos y agrupar
+        const fallbackResponse = await roleService.getPermisos()
+        if (fallbackResponse.success && fallbackResponse.data) {
+          const permisosData = Array.isArray(fallbackResponse.data) ? fallbackResponse.data : []
+          setPermisos(permisosData)
+          // Agrupar por módulo
+          const agrupados = permisosData.reduce((acc, permiso) => {
+            const modulo = permiso.modulo || 'otros'
+            if (!acc[modulo]) {
+              acc[modulo] = []
+            }
+            acc[modulo].push({
+              id: permiso.permiso_id || permiso.id,
+              permiso_id: permiso.permiso_id || permiso.id,
+              nombre_permiso: permiso.nombre_permiso,
+              descripcion: permiso.descripcion,
+              modulo: permiso.modulo,
+              accion: permiso.accion,
+              activo: permiso.activo
+            })
+            return acc
+          }, {})
+          
+          // Ordenar módulos: primero los principales, luego los demás alfabéticamente
+          const ordenModulos = [
+            'usuarios', 'roles', 'estudiantes', 'inscripciones', 'programas', 
+            'grupos', 'pagos', 'documentos', 'convenios', 'configuracion',
+            'bitacora', 'notificaciones', 'reportes'
+          ]
+          
+          const permisosOrdenados = {}
+          // Primero agregar módulos en el orden especificado
+          ordenModulos.forEach(modulo => {
+            if (agrupados[modulo]) {
+              permisosOrdenados[modulo] = agrupados[modulo]
+            }
+          })
+          // Luego agregar los módulos restantes alfabéticamente
+          Object.keys(agrupados)
+            .filter(modulo => !ordenModulos.includes(modulo))
+            .sort()
+            .forEach(modulo => {
+              permisosOrdenados[modulo] = agrupados[modulo]
+            })
+          
+          setPermisosAgrupados(permisosOrdenados)
+        }
       }
     } catch (error) {
       console.error('Error al cargar permisos:', error)
-      // Fallback: intentar con permisoService
-      try {
-        const fallbackResponse = await permisoService.getPermisosPorModulo()
-        if (fallbackResponse.success && fallbackResponse.data) {
-          setPermisosAgrupados(fallbackResponse.data)
-        }
-      } catch (fallbackError) {
-        console.error('Error al cargar permisos (fallback):', fallbackError)
-      }
+      toast.error('Error al cargar permisos')
     }
   }
 
@@ -119,12 +253,13 @@ const Roles = () => {
     try {
       const response = await roleService.getRole(role.id)
       if (response.success) {
-        setEditingRole(response.data)
-        const permisosIds = response.data.permisos?.map(p => p.id) || []
+        const rolData = response.data
+        setEditingRole(rolData)
+        const permisosIds = rolData.permisos?.map(p => p.permiso_id || p.id) || []
         setSelectedPermisos(permisosIds)
         reset({
-          nombre: response.data.nombre,
-          descripcion: response.data.descripcion || ''
+          nombre: rolData.nombre_rol || rolData.nombre,
+          descripcion: rolData.descripcion || ''
         })
         setShowModal(true)
       }
@@ -149,8 +284,9 @@ const Roles = () => {
     try {
       const response = await roleService.getRole(role.id)
       if (response.success) {
-        setEditingRole(response.data)
-        setSelectedPermisos(response.data.permisos?.map(p => p.id) || [])
+        const rolData = response.data
+        setEditingRole(rolData)
+        setSelectedPermisos(rolData.permisos?.map(p => p.permiso_id || p.id) || [])
         setShowPermisosModal(true)
       }
     } catch (error) {
@@ -158,12 +294,13 @@ const Roles = () => {
     }
   }
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (role) => {
     if (!window.confirm('¿Estás seguro de que quieres eliminar este rol?')) return
     
     try {
       setLoading(true)
-      const response = await roleService.deleteRole(id)
+      const rolId = role.rol_id || role.id
+      const response = await roleService.deleteRole(rolId)
       
       if (response.success) {
         toast.success(response.message || 'Rol eliminado exitosamente')
@@ -184,14 +321,16 @@ const Roles = () => {
       setLoading(true)
       
       const datosBackend = {
-        ...data,
+        nombre_rol: data.nombre,
+        descripcion: data.descripcion || '',
         permisos: selectedPermisos
       }
 
       let response
       
       if (editingRole) {
-        response = await roleService.updateRole(editingRole.id, datosBackend)
+        const rolId = editingRole.rol_id || editingRole.id
+        response = await roleService.updateRole(rolId, datosBackend)
       } else {
         response = await roleService.createRole(datosBackend)
       }
@@ -222,7 +361,8 @@ const Roles = () => {
   const onSubmitPermisos = async () => {
     try {
       setLoading(true)
-      const response = await roleService.asignarPermisos(editingRole.id, selectedPermisos)
+      const rolId = editingRole.rol_id || editingRole.id
+      const response = await roleService.asignarPermisos(rolId, selectedPermisos)
       
       if (response.success) {
         toast.success(response.message || 'Permisos asignados exitosamente')
@@ -250,7 +390,7 @@ const Roles = () => {
   }
 
   const toggleAllModulo = (moduloPermisos) => {
-    const moduloIds = moduloPermisos.map(p => p.id)
+    const moduloIds = moduloPermisos.map(p => p.permiso_id || p.id)
     const allSelected = moduloIds.every(id => selectedPermisos.includes(id))
     
     if (allSelected) {
@@ -336,7 +476,7 @@ const Roles = () => {
               variant="ghost"
               size="sm"
               icon={<Trash2 className="h-4 w-4" />}
-              onClick={() => handleDelete(row.id)}
+              onClick={() => handleDelete(row)}
             />
           )}
         </div>
@@ -487,34 +627,37 @@ const Roles = () => {
                     <div key={modulo} className="border-b border-gray-200 dark:border-gray-700 pb-3 last:border-0 last:pb-0">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold text-gray-900 dark:text-gray-100 capitalize">
-                          {modulo.replace('_', ' ')}
+                          {modulo.replace(/_/g, ' ')}
                         </h4>
                         <button
                           type="button"
                           onClick={() => toggleAllModulo(permisosAgrupados[modulo])}
                           className="text-xs text-primary-600 hover:text-primary-700 font-medium"
                         >
-                          {permisosAgrupados[modulo].every(p => selectedPermisos.includes(p.id))
+                          {permisosAgrupados[modulo].every(p => selectedPermisos.includes(p.permiso_id || p.id))
                             ? 'Desmarcar todos' : 'Marcar todos'}
                         </button>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {permisosAgrupados[modulo].map(permiso => (
-                          <label
-                            key={permiso.id}
-                            className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedPermisos.includes(permiso.id)}
-                              onChange={() => togglePermiso(permiso.id)}
-                              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                            />
-                            <span className="text-sm text-gray-700 dark:text-gray-300">
-                              {permiso.descripcion || permiso.accion}
-                            </span>
-                          </label>
-                        ))}
+                        {permisosAgrupados[modulo].map(permiso => {
+                          const permisoId = permiso.permiso_id || permiso.id
+                          return (
+                            <label
+                              key={permisoId}
+                              className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedPermisos.includes(permisoId)}
+                                onChange={() => togglePermiso(permisoId)}
+                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                              />
+                              <span className="text-sm text-gray-700 dark:text-gray-300">
+                                {permiso.descripcion || permiso.accion || permiso.nombre_permiso}
+                              </span>
+                            </label>
+                          )
+                        })}
                       </div>
                     </div>
                   ))
@@ -556,7 +699,7 @@ const Roles = () => {
           setEditingRole(null)
           setSelectedPermisos([])
         }}
-        title={`Gestionar Permisos - ${editingRole?.nombre || ''}`}
+        title={`Gestionar Permisos - ${editingRole?.nombre_rol || editingRole?.nombre || ''}`}
         size="xl"
       >
         <div className="space-y-6">
@@ -565,34 +708,37 @@ const Roles = () => {
               <div key={modulo} className="border-b border-gray-200 dark:border-gray-700 pb-3 last:border-0 last:pb-0">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold text-gray-900 dark:text-gray-100 capitalize">
-                    {modulo.replace('_', ' ')}
+                    {modulo.replace(/_/g, ' ')}
                   </h4>
                   <button
                     type="button"
                     onClick={() => toggleAllModulo(permisosAgrupados[modulo])}
                     className="text-xs text-primary-600 hover:text-primary-700"
                   >
-                    {permisosAgrupados[modulo].every(p => selectedPermisos.includes(p.id))
+                    {permisosAgrupados[modulo].every(p => selectedPermisos.includes(p.permiso_id || p.id))
                       ? 'Desmarcar todos' : 'Marcar todos'}
                   </button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {permisosAgrupados[modulo].map(permiso => (
-                    <label
-                      key={permiso.id}
-                      className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedPermisos.includes(permiso.id)}
-                        onChange={() => togglePermiso(permiso.id)}
-                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                      />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {permiso.descripcion || permiso.accion}
-                      </span>
-                    </label>
-                  ))}
+                  {permisosAgrupados[modulo].map(permiso => {
+                    const permisoId = permiso.permiso_id || permiso.id
+                    return (
+                      <label
+                        key={permisoId}
+                        className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedPermisos.includes(permisoId)}
+                          onChange={() => togglePermiso(permisoId)}
+                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          {permiso.descripcion || permiso.accion || permiso.nombre_permiso}
+                        </span>
+                      </label>
+                    )
+                  })}
                 </div>
               </div>
             ))}
@@ -631,14 +777,14 @@ const Roles = () => {
       >
         {viewingRole && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Nombre
                 </label>
-                <p className="text-gray-900 dark:text-gray-100">{viewingRole.nombre}</p>
+                <p className="text-gray-900 dark:text-gray-100 font-semibold">{viewingRole.nombre_rol || viewingRole.nombre || 'N/A'}</p>
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Descripción
                 </label>
@@ -646,15 +792,31 @@ const Roles = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Estado
+                </label>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {viewingRole.activo !== false ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                      Activo
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400">
+                      Inactivo
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Usuarios Asignados
                 </label>
-                <p className="text-gray-900 dark:text-gray-100">{viewingRole.users_count || 0}</p>
+                <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">{viewingRole.usuarios_count || viewingRole.users_count || 0}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Permisos Asignados
                 </label>
-                <p className="text-gray-900 dark:text-gray-100">{viewingRole.permisos_count || 0}</p>
+                <p className="text-gray-900 dark:text-gray-100 font-semibold text-lg">{viewingRole.permisos?.length || viewingRole.permisos_count || 0}</p>
               </div>
             </div>
 
@@ -665,23 +827,26 @@ const Roles = () => {
                 </label>
                 <div className="space-y-2">
                   {Object.keys(permisosAgrupados).map(modulo => {
-                    const permisosModulo = viewingRole.permisos.filter(p => 
-                      permisosAgrupados[modulo].some(perm => perm.id === p.id)
-                    )
+                    const permisosModulo = viewingRole.permisos.filter(p => {
+                      const permisoId = p.permiso_id || p.id
+                      return permisosAgrupados[modulo].some(perm => 
+                        (perm.permiso_id || perm.id) === permisoId
+                      )
+                    })
                     if (permisosModulo.length === 0) return null
                     
                     return (
                       <div key={modulo} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
                         <h5 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 capitalize">
-                          {modulo.replace('_', ' ')}
+                          {modulo.replace(/_/g, ' ')}
                         </h5>
                         <div className="flex flex-wrap gap-2">
                           {permisosModulo.map(permiso => (
                             <span
-                              key={permiso.id}
+                              key={permiso.permiso_id || permiso.id}
                               className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900/20 dark:text-primary-400"
                             >
-                              {permiso.descripcion || permiso.accion}
+                              {permiso.descripcion || permiso.accion || permiso.nombre_permiso}
                             </span>
                           ))}
                         </div>

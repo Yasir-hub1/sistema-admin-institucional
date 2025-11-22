@@ -13,7 +13,8 @@ export const verificacionPagoService = {
         page: params.page || 1,
         per_page: params.per_page || 15,
         search: params.search || '',
-        metodo: params.metodo || ''
+        metodo: params.metodo || '',
+        estudiante_id: params.estudiante_id || ''
       }
 
       // Eliminar parámetros vacíos
