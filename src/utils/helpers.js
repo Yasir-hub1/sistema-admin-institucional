@@ -47,19 +47,62 @@ export const formatDateTime = (date) => {
  * @returns {string} Tiempo relativo
  */
 export const formatRelativeTime = (date) => {
-  if (!date) return ''
+  if (!date) return 'Fecha no disponible'
   
-  const now = new Date()
-  const diff = now - new Date(date)
-  const seconds = Math.floor(diff / 1000)
+  try {
+    // Intentar parsear la fecha
+    const fecha = new Date(date)
+    
+    // Validar que la fecha sea válida
+    if (isNaN(fecha.getTime())) {
+      console.warn('Fecha inválida:', date)
+      return 'Fecha inválida'
+    }
+    
+    const now = new Date()
+    const diff = now.getTime() - fecha.getTime()
+    
+    // Si la diferencia es negativa, la fecha es en el futuro (error de zona horaria)
+    if (diff < 0) {
+      // Si la diferencia es muy grande (más de 1 día), probablemente es un error de zona horaria
+      // Intentar ajustar asumiendo que la fecha viene en UTC pero se interpretó como local
+      const fechaUTC = new Date(date + (date.includes('Z') ? '' : 'Z'))
+      if (!isNaN(fechaUTC.getTime())) {
+        const diffUTC = now.getTime() - fechaUTC.getTime()
+        if (diffUTC >= 0 && diffUTC < 86400000 * 365) { // Menos de 1 año
+          return formatRelativeTimeFromDiff(diffUTC)
+        }
+      }
+      return 'hace un momento'
+    }
+    
+    return formatRelativeTimeFromDiff(diff)
+  } catch (error) {
+    console.error('Error formateando fecha relativa:', error, date)
+    return 'Fecha inválida'
+  }
+}
+
+/**
+ * Formatea el tiempo relativo desde una diferencia en milisegundos
+ */
+const formatRelativeTimeFromDiff = (diffMs) => {
+  const seconds = Math.floor(diffMs / 1000)
   const minutes = Math.floor(seconds / 60)
   const hours = Math.floor(minutes / 60)
   const days = Math.floor(hours / 24)
+  const weeks = Math.floor(days / 7)
+  const months = Math.floor(days / 30)
+  const years = Math.floor(days / 365)
 
+  if (years > 0) return `hace ${years} año${years > 1 ? 's' : ''}`
+  if (months > 0) return `hace ${months} mes${months > 1 ? 'es' : ''}`
+  if (weeks > 0) return `hace ${weeks} semana${weeks > 1 ? 's' : ''}`
   if (days > 0) return `hace ${days} día${days > 1 ? 's' : ''}`
   if (hours > 0) return `hace ${hours} hora${hours > 1 ? 's' : ''}`
   if (minutes > 0) return `hace ${minutes} minuto${minutes > 1 ? 's' : ''}`
-  return 'ahora'
+  if (seconds > 0) return `hace ${seconds} segundo${seconds > 1 ? 's' : ''}`
+  return 'hace un momento'
 }
 
 /**

@@ -238,17 +238,41 @@ const Notificaciones = () => {
                       <p className="text-gray-600 dark:text-gray-400 mb-3">
                         {notificacion.mensaje}
                       </p>
-                      <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
-                        <div className="flex items-center">
-                          <Clock className="h-4 w-4 mr-1" />
-                          {formatRelativeTime(notificacion.created_at)}
-                        </div>
-                        {notificacion.leida_at && (
+                      <div className="flex flex-col gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center gap-4">
                           <div className="flex items-center">
-                            <Check className="h-4 w-4 mr-1" />
-                            Leída {formatRelativeTime(notificacion.leida_at)}
+                            <Clock className="h-4 w-4 mr-1" />
+                            <span>{formatRelativeTime(notificacion.created_at || notificacion.fecha_envio)}</span>
                           </div>
-                        )}
+                          {notificacion.leida_at && (
+                            <div className="flex items-center">
+                              <Check className="h-4 w-4 mr-1" />
+                              <span>Leída {formatRelativeTime(notificacion.leida_at || notificacion.fecha_lectura)}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-xs">
+                          <span className="font-medium">Fecha y hora:</span>
+                          <span>
+                            {notificacion.fecha_formateada || 
+                             (notificacion.created_at ? new Date(notificacion.created_at).toLocaleString('es-ES', {
+                               day: '2-digit',
+                               month: '2-digit',
+                               year: 'numeric',
+                               hour: '2-digit',
+                               minute: '2-digit',
+                               second: '2-digit'
+                             }) : 
+                             (notificacion.fecha_envio ? new Date(notificacion.fecha_envio).toLocaleString('es-ES', {
+                               day: '2-digit',
+                               month: '2-digit',
+                               year: 'numeric',
+                               hour: '2-digit',
+                               minute: '2-digit',
+                               second: '2-digit'
+                             }) : 'No disponible'))}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2 ml-4">
