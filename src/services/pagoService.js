@@ -1,6 +1,6 @@
 // Servicio de gestión de planes de pago y pagos
 
-import { get, post, put, del } from './api'
+import { get, post, put, del, upload } from './api'
 import { MESSAGES, PAGINATION_CONFIG } from '../utils/constants'
 
 /**
@@ -343,7 +343,7 @@ export const descuentoService = {
 export const estudiantePagoService = {
   async getMisCuotas() {
     try {
-      const response = await get('/student/pagos')
+      const response = await get('/estudiante/pagos')
       
       if (response.data.success) {
         return {
@@ -368,7 +368,7 @@ export const estudiantePagoService = {
 
   async getCuotaById(cuotaId) {
     try {
-      const response = await get(`/student/pagos/${cuotaId}`)
+      const response = await get(`/estudiante/pagos/${cuotaId}`)
       
       if (response.data.success) {
         return {
@@ -391,13 +391,18 @@ export const estudiantePagoService = {
     }
   },
 
-  async registrarPago(cuotaId, monto, token) {
+  async registrarPago(cuotaId, monto, metodo, comprobante, token = null) {
     try {
-      const response = await post('/student/pagos', {
-        cuota_id: cuotaId,
-        monto: monto,
-        token: token
-      })
+      const formData = new FormData()
+      formData.append('cuota_id', cuotaId)
+      formData.append('monto', monto)
+      formData.append('metodo', metodo)
+      formData.append('comprobante', comprobante)
+      if (token) {
+        formData.append('token', token)
+      }
+
+      const response = await upload('/estudiante/pagos', formData)
       
       if (response.data.success) {
         return {
@@ -424,7 +429,7 @@ export const estudiantePagoService = {
 
   async getInfoQR(cuotaId) {
     try {
-      const response = await get(`/student/pagos/${cuotaId}/qr`)
+      const response = await get(`/estudiante/pagos/${cuotaId}/info-qr`)
       
       if (response.data.success) {
         return {

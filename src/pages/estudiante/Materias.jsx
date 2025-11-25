@@ -153,11 +153,29 @@ const Materias = () => {
                     <div className="flex items-center gap-2 text-gray-600">
                       <User className="h-5 w-5 text-blue-600" />
                       <span className="text-sm">
-                        <strong>Grupo:</strong> {materia.grupo.nombre || materia.grupo.id}
+                        <strong>Grupo:</strong> {materia.grupo.nombre || materia.grupo.modulo || materia.grupo.id}
                       </span>
                     </div>
                   )}
                 </div>
+                
+                {/* Mostrar horarios si están disponibles */}
+                {materia.grupo?.horarios && materia.grupo.horarios.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Horarios:
+                    </p>
+                    <div className="space-y-1">
+                      {materia.grupo.horarios.map((horario, idx) => (
+                        <p key={idx} className="text-sm text-gray-600">
+                          {horario.dias} {horario.hora_ini} - {horario.hora_fin}
+                          {horario.aula && <span className="text-gray-500"> ({horario.aula})</span>}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
           ))}

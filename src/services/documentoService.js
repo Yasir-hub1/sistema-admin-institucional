@@ -293,7 +293,7 @@ export const validacionDocumentoService = {
 export const estudianteDocumentoService = {
   async getMisDocumentos() {
     try {
-      const response = await get('/student/documentos')
+      const response = await get('/estudiante/documentos')
       
       if (response.data.success) {
         return {
@@ -322,7 +322,7 @@ export const estudianteDocumentoService = {
       formData.append('tipo_documento_id', tipoDocumentoId)
       formData.append('archivo', archivo)
 
-      const response = await upload('/student/documentos/subir', formData)
+      const response = await upload('/estudiante/documentos/subir', formData)
       
       if (response.data.success) {
         return {

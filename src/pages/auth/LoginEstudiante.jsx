@@ -11,7 +11,8 @@ import {
   EyeOff, 
   GraduationCap,
   ArrowLeft,
-  UserPlus
+  UserPlus,
+  Mail
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -47,11 +48,11 @@ const LoginEstudiante = () => {
 
   const onSubmit = async (data) => {
     try {
-      console.log('🚀 Iniciando login con CI:', data.ci)
+      console.log('🚀 Iniciando login con Email:', data.email)
       
       // Usar el método login del AuthContext que maneja todo
       const loginResult = await login({
-        ci: data.ci,
+        email: data.email,
         password: data.password,
         userType: 'estudiante'
       })
@@ -133,16 +134,16 @@ const LoginEstudiante = () => {
             
             <div className="space-y-5">
               <Input
-                label="Número de CI"
-                type="text"
-                placeholder="12345678"
-                icon={<GraduationCap className="h-5 w-5" />}
-                error={errors.ci?.message}
-                {...register('ci', {
-                  required: 'El CI es obligatorio',
+                label="Email"
+                type="email"
+                placeholder="tu@email.com"
+                icon={<Mail className="h-5 w-5" />}
+                error={errors.email?.message}
+                {...register('email', {
+                  required: 'El email es obligatorio',
                   pattern: {
-                    value: /^\d+$/,
-                    message: 'El CI debe contener solo números'
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: 'El email debe tener un formato válido'
                   }
                 })}
               />

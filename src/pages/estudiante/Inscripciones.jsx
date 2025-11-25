@@ -38,11 +38,21 @@ const Inscripciones = () => {
       if (response.success) {
         setProgramas(response.data || [])
       } else {
-        toast.error(response.message || 'Error al cargar programas')
+        // Si el error es por documentos no aprobados, mostrar mensaje específico
+        if (response.message?.includes('documentos aprobados')) {
+          toast.error('Debes tener tus documentos aprobados para poder inscribirte. Completa la verificación de documentos primero.')
+        } else {
+          toast.error(response.message || 'Error al cargar programas')
+        }
         setProgramas([])
       }
     } catch (error) {
-      toast.error('Error de conexión')
+      // Verificar si el error es por documentos no aprobados
+      if (error.response?.data?.message?.includes('documentos aprobados')) {
+        toast.error('Debes tener tus documentos aprobados para poder inscribirte. Completa la verificación de documentos primero.')
+      } else {
+        toast.error('Error de conexión')
+      }
       setProgramas([])
     } finally {
       setLoading(false)
@@ -61,17 +71,23 @@ const Inscripciones = () => {
     
     // Verificar conflictos de horario
     setVerificando(true)
-    const verificacion = await inscripcionService.verificarHorarios(grupo.id)
-    setVerificando(false)
-    
-    if (verificacion.success) {
-      if (verificacion.tieneConflictos) {
-        setConflictos(verificacion.conflictos)
-        toast.error('Se encontraron conflictos de horario')
+    try {
+      const verificacion = await inscripcionService.verificarHorarios(grupo.id)
+      
+      if (verificacion.success) {
+        if (verificacion.tieneConflictos) {
+          setConflictos(verificacion.conflictos || [])
+          toast.error('Se encontraron conflictos de horario. Revisa los detalles en el modal.')
+        }
+        setShowModal(true)
+      } else {
+        toast.error(verificacion.message || 'Error al verificar horarios')
       }
-      setShowModal(true)
-    } else {
-      toast.error(verificacion.message || 'Error al verificar horarios')
+    } catch (error) {
+      console.error('Error verificando horarios:', error)
+      toast.error('Error al verificar horarios. Intenta nuevamente.')
+    } finally {
+      setVerificando(false)
     }
   }
 
@@ -142,10 +158,12 @@ const Inscripciones = () => {
           <div className="text-center py-12">
             <GraduationCap className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              No hay programas disponibles
+              {loading ? 'Cargando programas...' : 'No hay programas disponibles'}
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Actualmente no hay programas con grupos disponibles para inscripción
+              {loading 
+                ? 'Por favor espera...' 
+                : 'Actualmente no hay programas con grupos disponibles para inscripción. Verifica que tus documentos estén aprobados.'}
             </p>
           </div>
         </Card>
@@ -263,27 +281,60 @@ const Inscripciones = () => {
             </div>
 
             {conflictos.length > 0 && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <div className="flex items-start gap-2 mb-2">
-                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                  <h5 className="font-semibold text-red-900 dark:text-red-100">
-                    Conflictos de Horario Detectados
-                  </h5>
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-800 rounded-lg">
+                <div className="flex items-start gap-2 mb-3">
+                  <AlertCircle className="h-6 w-6 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h5 className="font-bold text-lg text-red-900 dark:text-red-100 mb-1">
+                      ⚠️ Conflictos de Horario Detectados
+                    </h5>
+                    <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+                      El horario del grupo seleccionado entra en conflicto con otros grupos en los que ya está inscrito. No puedes inscribirte en este grupo.
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm text-red-700 dark:text-red-300 mb-3">
-                  El horario del grupo seleccionado entra en conflicto con otros grupos en los que ya está inscrito:
-                </p>
-                <ul className="space-y-2">
-                  {conflictos.map((conflicto, idx) => (
-                    <li key={idx} className="text-sm text-red-700 dark:text-red-300">
-                      • {conflicto.grupo_conflicto?.programa} - {conflicto.grupo_conflicto?.modulo} 
-                      {' '}({conflicto.horario_conflicto?.dias} {conflicto.horario_conflicto?.hora_ini} - {conflicto.horario_conflicto?.hora_fin})
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-sm font-semibold text-red-900 dark:text-red-100 mt-3">
-                  No puede inscribirse debido a estos conflictos.
-                </p>
+                
+                <div className="space-y-3">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-red-200">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                      Horario del grupo seleccionado:
+                    </p>
+                    {selectedGrupo?.horarios?.map((h, idx) => (
+                      <p key={idx} className="text-sm text-gray-700 dark:text-gray-300">
+                        {h.dias} {h.hora_ini} - {h.hora_fin}
+                      </p>
+                    ))}
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-red-900 dark:text-red-100 mb-2">
+                      Conflictos con tus grupos actuales:
+                    </p>
+                    <ul className="space-y-2">
+                      {conflictos.map((conflicto, idx) => (
+                        <li key={idx} className="bg-white dark:bg-gray-800 rounded p-2 border border-red-200">
+                          <div className="flex items-start gap-2">
+                            <XCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {conflicto.grupo_conflicto?.programa} - {conflicto.grupo_conflicto?.modulo}
+                              </p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">
+                                {conflicto.horario_conflicto?.dias} {conflicto.horario_conflicto?.hora_ini} - {conflicto.horario_conflicto?.hora_fin}
+                              </p>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                  <p className="text-sm font-semibold text-red-900 dark:text-red-100">
+                    💡 Solución: Selecciona otro grupo con un horario diferente o cancela una inscripción existente.
+                  </p>
+                </div>
               </div>
             )}
 

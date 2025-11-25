@@ -9,7 +9,7 @@ import { MESSAGES } from '../utils/constants'
 export const inscripcionService = {
   async getProgramasDisponibles() {
     try {
-      const response = await get('/student/inscripciones/programas-disponibles')
+      const response = await get('/estudiante/inscripciones/programas-disponibles')
       
       if (response.data.success) {
         return {
@@ -34,7 +34,7 @@ export const inscripcionService = {
 
   async verificarHorarios(grupoId) {
     try {
-      const response = await post('/student/inscripciones/verificar-horarios', {
+      const response = await post('/estudiante/inscripciones/verificar-horarios', {
         grupo_id: grupoId
       })
       
@@ -67,7 +67,7 @@ export const inscripcionService = {
         per_page: params.per_page || 15
       }
 
-      const response = await get('/student/inscripciones', queryParams)
+      const response = await get('/estudiante/inscripciones', queryParams)
       
       if (response.data.success) {
         return {
@@ -92,7 +92,7 @@ export const inscripcionService = {
 
   async getInscripcionById(id) {
     try {
-      const response = await get(`/student/inscripciones/${id}`)
+      const response = await get(`/estudiante/inscripciones/${id}`)
       
       if (response.data.success) {
         return {
@@ -117,7 +117,7 @@ export const inscripcionService = {
 
   async crearInscripcion(data) {
     try {
-      const response = await post('/student/inscripciones', data)
+      const response = await post('/estudiante/inscripciones', data)
       
       if (response.data.success) {
         return {

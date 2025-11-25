@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { get } from '../../services/api'
-import { CreditCard, CheckCircle, Clock, XCircle, DollarSign, Calendar, QrCode } from 'lucide-react'
+import { CreditCard, CheckCircle, Clock, XCircle, DollarSign, Calendar, QrCode, AlertCircle } from 'lucide-react'
+import toast from 'react-hot-toast'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import Card from '../../components/common/Card'
 import Button from '../../components/common/Button'
+import QRModal from '../../components/estudiante/QRModal'
 
 const Pagos = () => {
   const { user } = useAuth()
   const [pagos, setPagos] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [showQRModal, setShowQRModal] = useState(false)
+  const [selectedCuotaId, setSelectedCuotaId] = useState(null)
 
   useEffect(() => {
     const fetchPagos = async () => {
@@ -219,31 +223,44 @@ const Pagos = () => {
                 )}
 
                 {pago.estado?.toLowerCase() === 'pendiente' && (
-                  <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-200">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => {
-                        // TODO: Implementar flujo de pago
-                        alert('Funcionalidad de pago en desarrollo')
-                      }}
-                    >
-                      <CreditCard className="h-4 w-4 mr-2" />
-                      Realizar Pago
-                    </Button>
-                    {pago.codigo_qr && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          if (pago.cuota_id || pago.id) {
+                            setSelectedCuotaId(pago.cuota_id || pago.id)
+                            setShowQRModal(true)
+                          } else {
+                            toast.error('No se pudo obtener la información de la cuota')
+                          }
+                        }}
+                      >
+                        <QrCode className="h-4 w-4 mr-2" />
+                        Pagar con QR
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          // TODO: Mostrar QR
-                          alert('Código QR: ' + pago.codigo_qr)
+                          // TODO: Implementar modal de pago con comprobante
+                          toast.info('Próximamente: Subir comprobante de pago')
                         }}
                       >
-                        <QrCode className="h-4 w-4 mr-2" />
-                        Ver QR
+                        <CreditCard className="h-4 w-4 mr-2" />
+                        Subir Comprobante
                       </Button>
-                    )}
+                    </div>
+                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                        <div className="text-sm text-yellow-800">
+                          <p className="font-medium mb-1">Importante:</p>
+                          <p>Después de realizar el pago, sube el comprobante para que sea verificado. Tu inscripción se validará una vez que el pago sea confirmado.</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -251,6 +268,16 @@ const Pagos = () => {
           ))}
         </div>
       )}
+
+      {/* Modal de QR */}
+      <QRModal
+        isOpen={showQRModal}
+        onClose={() => {
+          setShowQRModal(false)
+          setSelectedCuotaId(null)
+        }}
+        cuotaId={selectedCuotaId}
+      />
     </div>
   )
 }

@@ -148,6 +148,27 @@ const RegistroEstudiante = () => {
                     required: 'La fecha de nacimiento es obligatoria'
                   })}
                 />
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sexo
+                  </label>
+                  <select
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                      errors.sexo ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    {...register('sexo', {
+                      required: 'El sexo es obligatorio'
+                    })}
+                  >
+                    <option value="">Seleccione...</option>
+                    <option value="M">Masculino</option>
+                    <option value="F">Femenino</option>
+                  </select>
+                  {errors.sexo && (
+                    <p className="mt-1 text-sm text-red-600">{errors.sexo.message}</p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -158,6 +179,20 @@ const RegistroEstudiante = () => {
                 Información de Contacto
               </h3>
               <div className="grid md:grid-cols-2 gap-4">
+                <Input
+                  label="Email"
+                  type="email"
+                  placeholder="tu@email.com"
+                  icon={<Mail className="h-5 w-5" />}
+                  error={errors.email?.message}
+                  {...register('email', {
+                    required: 'El email es obligatorio',
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: 'El email debe tener un formato válido'
+                    }
+                  })}
+                />
                 <Input
                   label="Celular"
                   type="text"

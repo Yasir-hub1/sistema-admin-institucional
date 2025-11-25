@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { Upload, FileText, CheckCircle, XCircle, Clock, Download } from 'lucide-react'
+import { Upload, FileText, CheckCircle, XCircle, Clock, Printer, Eye, RefreshCw } from 'lucide-react'
 import Button from '../../components/common/Button'
 import Card from '../../components/common/Card'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
+import DocumentPreviewModal from '../../components/estudiante/DocumentPreviewModal'
 import toast from 'react-hot-toast'
 import { estudianteDocumentoService } from '../../services/documentoService'
 
@@ -10,6 +11,8 @@ const MisDocumentos = () => {
   const [documentos, setDocumentos] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState({})
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [documentoPreview, setDocumentoPreview] = useState(null)
 
   useEffect(() => {
     fetchDocumentos()
@@ -35,25 +38,41 @@ const MisDocumentos = () => {
   }
 
   const handleFileChange = async (tipoDocumentoId, event) => {
-    const file = event.target.files[0]
-    if (!file) return
+    const file = event.target.files?.[0]
+    if (!file) {
+      console.log('No se seleccionó ningún archivo')
+      return
+    }
+
+    console.log('Archivo seleccionado:', {
+      nombre: file.name,
+      tipo: file.type,
+      tamaño: file.size,
+      tipoDocumentoId
+    })
 
     // Validar tipo de archivo
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
     if (!allowedTypes.includes(file.type)) {
       toast.error('Solo se permiten archivos PDF, JPG, JPEG o PNG')
+      event.target.value = ''
       return
     }
 
     // Validar tamaño (10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast.error('El archivo no debe exceder 10MB')
+      event.target.value = ''
       return
     }
 
     try {
-      setUploading({ ...uploading, [tipoDocumentoId]: true })
+      setUploading(prev => ({ ...prev, [tipoDocumentoId]: true }))
+      console.log('Iniciando subida de documento...', { tipoDocumentoId, fileName: file.name })
+      
       const response = await estudianteDocumentoService.subirDocumento(tipoDocumentoId, file)
+      
+      console.log('Respuesta del servicio:', response)
       
       if (response.success) {
         toast.success(response.message || 'Documento subido exitosamente')
@@ -62,17 +81,144 @@ const MisDocumentos = () => {
         toast.error(response.message || 'Error al subir documento')
         if (response.errors) {
           Object.keys(response.errors).forEach(key => {
-            toast.error(`${key}: ${response.errors[key]}`)
+            const errorMsg = Array.isArray(response.errors[key]) 
+              ? response.errors[key].join(', ') 
+              : response.errors[key]
+            toast.error(`${key}: ${errorMsg}`)
           })
         }
       }
     } catch (error) {
-      toast.error('Error al subir documento')
+      console.error('Error al subir documento:', error)
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.errors?.archivo?.[0] ||
+                          error.response?.data?.errors?.tipo_documento_id?.[0] ||
+                          'Error al subir documento'
+      toast.error(errorMessage)
     } finally {
-      setUploading({ ...uploading, [tipoDocumentoId]: false })
-      // Limpiar el input
-      event.target.value = ''
+      setUploading(prev => ({ ...prev, [tipoDocumentoId]: false }))
+      // Limpiar el input para permitir subir el mismo archivo de nuevo
+      if (event.target) {
+        event.target.value = ''
+      }
     }
+  }
+
+  const handleVerDocumento = (doc) => {
+    setDocumentoPreview(doc)
+    setShowPreviewModal(true)
+  }
+
+  const handleImprimir = (doc) => {
+    const url = getDocumentoUrl(doc.url_descarga)
+    if (!url) {
+      toast.error('No hay archivo disponible para imprimir')
+      return
+    }
+
+    const esImagen = /\.(jpg|jpeg|png|gif|webp)$/i.test(url)
+    const esPDF = /\.pdf$/i.test(url)
+    const nombreArchivo = doc.nombre_documento || doc.nombre_entidad || 'Documento'
+
+    // Para imágenes, crear una ventana de impresión optimizada
+    if (esImagen) {
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>${nombreArchivo}</title>
+              <style>
+                @media print {
+                  @page {
+                    margin: 0.5cm;
+                    size: auto;
+                  }
+                  body {
+                    margin: 0;
+                    padding: 0;
+                  }
+                  img {
+                    max-width: 100%;
+                    height: auto;
+                    page-break-inside: avoid;
+                    display: block;
+                    margin: 0 auto;
+                  }
+                }
+                @media screen {
+                  body {
+                    margin: 20px;
+                    text-align: center;
+                    background: #f5f5f5;
+                  }
+                  img {
+                    max-width: 90%;
+                    height: auto;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    border-radius: 8px;
+                  }
+                }
+              </style>
+            </head>
+            <body>
+              <img src="${url}" alt="${nombreArchivo}" onload="setTimeout(() => { window.print(); }, 500); window.onafterprint = function() { setTimeout(() => { window.close(); }, 100); }" />
+            </body>
+          </html>
+        `)
+        printWindow.document.close()
+      }
+    } else if (esPDF) {
+      // Para PDFs, abrir en nueva ventana y luego imprimir
+      const printWindow = window.open(url, '_blank')
+      if (printWindow) {
+        const checkLoaded = setInterval(() => {
+          try {
+            if (printWindow.document && printWindow.document.readyState === 'complete') {
+              clearInterval(checkLoaded)
+              setTimeout(() => {
+                printWindow.print()
+              }, 1000)
+            }
+          } catch (e) {
+            clearInterval(checkLoaded)
+            setTimeout(() => {
+              printWindow.print()
+            }, 2000)
+          }
+        }, 100)
+        
+        setTimeout(() => {
+          clearInterval(checkLoaded)
+          try {
+            printWindow.print()
+          } catch (e) {
+            console.error('Error al imprimir PDF:', e)
+          }
+        }, 5000)
+      }
+    } else {
+      const printWindow = window.open(url, '_blank')
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print()
+          }, 1000)
+        }
+      }
+    }
+  }
+
+  const getDocumentoUrl = (urlDescarga) => {
+    if (!urlDescarga) return null
+    // Si ya es una URL completa, usarla directamente
+    if (urlDescarga.startsWith('http://') || urlDescarga.startsWith('https://')) {
+      return urlDescarga
+    }
+    // Si es relativa, construir la URL completa
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+    return `${apiUrl}${urlDescarga.startsWith('/') ? '' : '/'}${urlDescarga}`
   }
 
   const getEstadoBadge = (estado) => {
@@ -211,16 +357,26 @@ const MisDocumentos = () => {
                   </div>
                   
                   <div className="flex flex-col items-end gap-3 ml-4">
-                    {doc.url_descarga && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        icon={<Download className="h-4 w-4" />}
-                        onClick={() => window.open(doc.url_descarga, '_blank')}
-                      >
-                        Ver Documento
-                      </Button>
-                    )}
+                    {doc.url_descarga && doc.documento_id ? (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          icon={<Eye className="h-4 w-4" />}
+                          onClick={() => handleVerDocumento(doc)}
+                        >
+                          Ver
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          icon={<Printer className="h-4 w-4" />}
+                          onClick={() => handleImprimir(doc)}
+                        >
+                          Imprimir
+                        </Button>
+                      </div>
+                    ) : null}
                     
                     <div className="relative">
                       <input
@@ -231,17 +387,45 @@ const MisDocumentos = () => {
                         className="hidden"
                         disabled={uploading[doc.tipo_documento_id]}
                       />
-                      <label htmlFor={`file-${doc.tipo_documento_id}`}>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          icon={<Upload className="h-4 w-4" />}
-                          disabled={uploading[doc.tipo_documento_id]}
-                          as="span"
-                        >
-                          {uploading[doc.tipo_documento_id] ? 'Subiendo...' : doc.documento_id ? 'Reemplazar' : 'Subir Documento'}
-                        </Button>
-                      </label>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={uploading[doc.tipo_documento_id]}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          const input = document.getElementById(`file-${doc.tipo_documento_id}`)
+                          if (input && !uploading[doc.tipo_documento_id]) {
+                            console.log('Haciendo click en input file:', `file-${doc.tipo_documento_id}`)
+                            input.click()
+                          } else {
+                            console.warn('Input no encontrado o está deshabilitado:', {
+                              input: !!input,
+                              uploading: uploading[doc.tipo_documento_id],
+                              tipoDocumentoId: doc.tipo_documento_id
+                            })
+                          }
+                        }}
+                        className="cursor-pointer"
+                        type="button"
+                      >
+                        {uploading[doc.tipo_documento_id] ? (
+                          <>
+                            <span className="animate-spin mr-2 inline-block">⏳</span>
+                            Subiendo...
+                          </>
+                        ) : doc.documento_id ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 inline-block" />
+                            Reemplazar
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 mr-2 inline-block" />
+                            Subir Documento
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -264,6 +448,16 @@ const MisDocumentos = () => {
           <li>• Solo los estudiantes con todos los documentos aprobados podrán inscribirse</li>
         </ul>
       </Card>
+
+      {/* Modal de Vista Previa de Documento */}
+      <DocumentPreviewModal
+        isOpen={showPreviewModal}
+        onClose={() => {
+          setShowPreviewModal(false)
+          setDocumentoPreview(null)
+        }}
+        documento={documentoPreview}
+      />
     </div>
   )
 }

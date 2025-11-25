@@ -83,8 +83,8 @@ export const authService = {
   /**
    * Iniciar sesión (método genérico que detecta el tipo de usuario)
    * @param {object} credentials - Credenciales de login
-   * @param {string} credentials.email - Email (para admin/docente)
-   * @param {string} credentials.ci - CI (para estudiante o admin/docente)
+   * @param {string} credentials.email - Email (para estudiante, admin/docente)
+   * @param {string} credentials.ci - CI (solo para admin/docente como alternativa)
    * @param {string} credentials.password - Contraseña
    * @param {string} credentials.userType - Tipo de usuario: 'admin' | 'estudiante' (opcional)
    * @returns {Promise<object>} Respuesta con token y usuario
@@ -92,16 +92,27 @@ export const authService = {
   async login(credentials) {
     // Si se especifica el tipo de usuario, usar el endpoint correspondiente
     if (credentials.userType === 'estudiante') {
+      // Estudiantes siempre usan email y password
+      if (!credentials.email) {
+        return {
+          success: false,
+          message: 'El email es obligatorio para estudiantes'
+        }
+      }
       return this.loginEstudiante(credentials)
     } else if (credentials.userType === 'admin' || credentials.email) {
       return this.loginAdmin(credentials)
     } else if (credentials.ci) {
-      // Intentar primero como admin/docente, luego como estudiante
+      // Intentar primero como admin/docente, luego como estudiante (aunque estudiantes ya no usan CI)
       const adminResult = await this.loginAdmin(credentials)
       if (adminResult.success) {
         return adminResult
       }
-      return this.loginEstudiante(credentials)
+      // Si falla como admin, no intentar como estudiante porque estudiantes usan email
+      return {
+        success: false,
+        message: 'Debe proporcionar email para estudiantes o credenciales válidas para admin/docente'
+      }
     } else {
       return {
         success: false,

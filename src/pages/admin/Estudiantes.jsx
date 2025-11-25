@@ -13,7 +13,10 @@ import {
   UserCheck,
   UserX,
   CheckCircle,
-  XCircle
+  XCircle,
+  Info,
+  LogIn,
+  FileText
 } from 'lucide-react'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import Card from '../../components/common/Card'
@@ -94,8 +97,8 @@ const Estudiantes = () => {
         // Calcular estadísticas
         setStats({
           total: estudiantesData.length,
-          activos: estudiantesData.filter(e => e.activo !== false && e.estado !== 'Inactivo').length,
-          inactivos: estudiantesData.filter(e => e.activo === false || e.estado === 'Inactivo').length
+          activos: estudiantesData.filter(e => e.activo === true || e.estado_id === 4).length,
+          inactivos: estudiantesData.filter(e => e.activo !== true && e.estado_id !== 4).length
         })
       } else {
         setError('No se pudieron cargar los estudiantes')
@@ -406,7 +409,7 @@ const Estudiantes = () => {
           'Fecha Nacimiento': estudiante.fecha_nacimiento ? new Date(estudiante.fecha_nacimiento).toLocaleDateString('es-ES') : 'N/A',
           'Provincia': estudiante.provincia || 'N/A',
           'Dirección': estudiante.direccion || 'N/A',
-          'Estado': estudiante.activo !== false && estudiante.estado !== 'Inactivo' ? 'Activo' : 'Inactivo',
+          'Estado': (estudiante.activo === true || estudiante.estado_id === 4) ? 'Activo' : 'Inactivo',
           'Fecha Inscripción': estudiante.fecha_inscripcion ? new Date(estudiante.fecha_inscripcion).toLocaleDateString('es-ES') : 'N/A'
         }))
         
@@ -476,16 +479,88 @@ const Estudiantes = () => {
         </span>
       )
     },
+    // {
+    //   key: 'estado_id',
+    //   label: 'Estado ID',
+    //   sortable: true,
+    //   render: (row) => {
+    //     const getEstadoInfo = (estadoId) => {
+    //       const estados = {
+    //         1: { nombre: 'Pre-registrado', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300', desc: 'Recién registrado, sin documentos' },
+    //         2: { nombre: 'Documentos incompletos', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400', desc: 'Faltan algunos documentos' },
+    //         3: { nombre: 'En revisión', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400', desc: 'Documentos pendientes de validación' },
+    //         4: { nombre: 'Validado - Activo', color: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400', desc: 'Documentos aprobados, puede inscribirse' },
+    //         5: { nombre: 'Rechazado', color: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400', desc: 'Documentos rechazados' }
+    //       }
+    //       return estados[estadoId] || { nombre: 'Desconocido', color: 'bg-gray-100 text-gray-800', desc: 'Estado no definido' }
+    //     }
+        
+    //     const estadoInfo = getEstadoInfo(row.estado_id)
+        
+    //     return (
+    //       <div className="flex items-center gap-2 group relative">
+    //         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${estadoInfo.color}`}>
+    //           {row.estado_id}
+    //         </span>
+    //         <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-0 top-full mt-1 z-10 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap pointer-events-none">
+    //           {estadoInfo.nombre}: {estadoInfo.desc}
+    //         </div>
+    //       </div>
+    //     )
+    //   }
+    // },
     {
       key: 'estado',
       label: 'Estado',
       sortable: true,
       render: (row) => {
-        const isActive = row.activo !== false && row.estado !== 'Inactivo'
+        const getEstadoColor = (estadoNombre, estadoId) => {
+          const nombre = (estadoNombre || '').toLowerCase()
+          if (estadoId === 4 || nombre.includes('validado') || nombre.includes('activo')) {
+            return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+          }
+          if (nombre.includes('revisión') || nombre.includes('revision')) {
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+          }
+          if (nombre.includes('rechazado') || nombre.includes('rechazado')) {
+            return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+          }
+          if (nombre.includes('incompleto') || nombre.includes('incompletos')) {
+            return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+          }
+          if (nombre.includes('pre-registrado') || nombre.includes('preregistrado')) {
+            return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+          }
+          return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+        }
+        
+        const estadoColor = getEstadoColor(row.estado, row.estado_id)
+        
+        return (
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${estadoColor}`}>
+            <FileText className="h-3 w-3 mr-1" />
+            {row.estado || 'Sin estado'}
+          </span>
+        )
+      }
+    },
+    {
+      key: 'activo',
+      label: 'Acceso',
+      sortable: true,
+      render: (row) => {
+        // El backend devuelve 'activo: true' cuando Estado_id === 4 (Validado - Apto para inscripción)
+        // También verificamos el nombre del estado como respaldo
+        const estadoNombre = (row.estado || '').toLowerCase()
+        const isActive = row.activo === true || 
+                        row.estado_id === 4 || 
+                        estadoNombre === 'validado' ||
+                        estadoNombre === 'validado - activo' ||
+                        estadoNombre === 'activo'
         const estudianteId = row.registro_estudiante || row.id
         
         return (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 group relative">
             <button
               onClick={async (e) => {
                 e.stopPropagation()
@@ -512,7 +587,7 @@ const Estudiantes = () => {
                   ? 'bg-success-500'
                   : 'bg-gray-300 dark:bg-gray-600'
               }`}
-              title={isActive ? 'Desactivar estudiante' : 'Activar estudiante'}
+              title={isActive ? 'Desactivar acceso (no podrá loguear)' : 'Activar acceso (podrá loguear)'}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -520,13 +595,21 @@ const Estudiantes = () => {
                 }`}
               />
             </button>
-            <span className={`text-xs font-medium ${
-              isActive
-                ? 'text-success-600 dark:text-success-400' 
-                : 'text-gray-600 dark:text-gray-400'
-            }`}>
-              {isActive ? 'Activo' : 'Inactivo'}
-            </span>
+            <div className="flex items-center gap-1">
+              <LogIn className={`h-4 w-4 ${isActive ? 'text-success-600 dark:text-success-400' : 'text-gray-400'}`} />
+              <span className={`text-xs font-medium ${
+                isActive
+                  ? 'text-success-600 dark:text-success-400' 
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}>
+                {isActive ? 'Puede loguear' : 'No puede loguear'}
+              </span>
+            </div>
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute left-0 top-full mt-1 z-10 bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap pointer-events-none">
+              {isActive 
+                ? 'El estudiante puede iniciar sesión y acceder al portal' 
+                : 'El estudiante no puede iniciar sesión. Solo activo si estado_id = 4 (Validado - Activo)'}
+            </div>
           </div>
         )
       }
@@ -720,6 +803,36 @@ const Estudiantes = () => {
             </div>
           </div>
         )}
+      </Card>
+
+      {/* Leyenda de Estados */}
+      <Card className="gradient" shadow="glow-lg">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            Información sobre los Estados
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div className="bg-blue-50 dark:bg-blue-900/10 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
+              <div className="font-semibold text-blue-800 dark:text-blue-300 mb-1">Estado ID</div>
+              <p className="text-blue-700 dark:text-blue-400">
+                Identificador numérico del estado (1-5). Indica la etapa del proceso del estudiante.
+              </p>
+            </div>
+            <div className="bg-purple-50 dark:bg-purple-900/10 rounded-lg p-3 border border-purple-200 dark:border-purple-800">
+              <div className="font-semibold text-purple-800 dark:text-purple-300 mb-1">Estado (Nombre)</div>
+              <p className="text-purple-700 dark:text-purple-400">
+                Nombre descriptivo del estado. Muestra el estado actual del proceso de validación.
+              </p>
+            </div>
+            <div className="bg-green-50 dark:bg-green-900/10 rounded-lg p-3 border border-green-200 dark:border-green-800">
+              <div className="font-semibold text-green-800 dark:text-green-300 mb-1">Acceso (Puede Loguear)</div>
+              <p className="text-green-700 dark:text-green-400">
+                Indica si el estudiante puede iniciar sesión. Solo activo cuando estado_id = 4 (Validado - Activo).
+              </p>
+            </div>
+          </div>
+        </div>
       </Card>
 
       {/* Tabla de estudiantes */}
@@ -1086,27 +1199,86 @@ const Estudiantes = () => {
               </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                Estado
-              </label>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                viewingEstudiante.activo !== false && viewingEstudiante.estado !== 'Inactivo'
-                  ? 'bg-success-100 text-success-800 dark:bg-success-900/20 dark:text-success-400' 
-                  : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
-              }`}>
-                {viewingEstudiante.activo !== false && viewingEstudiante.estado !== 'Inactivo' ? (
-                  <>
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Activo
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Inactivo
-                  </>
-                )}
-              </span>
+            {/* Sección de Estados - Mostrar los 3 estados claramente */}
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <Info className="h-5 w-5 text-primary-600" />
+                Información de Estado
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Estado ID */}
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                    <Info className="h-4 w-4" />
+                    Estado ID
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                      {viewingEstudiante.estado_id || 'N/A'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                    {viewingEstudiante.estado_id === 1 && 'Pre-registrado: Recién registrado, sin documentos'}
+                    {viewingEstudiante.estado_id === 2 && 'Documentos incompletos: Faltan algunos documentos'}
+                    {viewingEstudiante.estado_id === 3 && 'En revisión: Documentos pendientes de validación'}
+                    {viewingEstudiante.estado_id === 4 && 'Validado - Activo: Documentos aprobados, puede inscribirse'}
+                    {viewingEstudiante.estado_id === 5 && 'Rechazado: Documentos rechazados'}
+                    {!viewingEstudiante.estado_id && 'Estado no definido'}
+                  </p>
+                </div>
+
+                {/* Estado (Nombre) */}
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                    <FileText className="h-4 w-4" />
+                    Estado (Nombre)
+                  </label>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                    viewingEstudiante.estado_id === 4 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                      : viewingEstudiante.estado_id === 3
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+                      : viewingEstudiante.estado_id === 5
+                      ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                      : viewingEstudiante.estado_id === 2
+                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                  }`}>
+                    {viewingEstudiante.estado || 'Sin estado'}
+                  </span>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                    Nombre descriptivo del estado del estudiante en el sistema
+                  </p>
+                </div>
+
+                {/* Acceso (Activo) */}
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+                    <LogIn className="h-4 w-4" />
+                    Acceso (Puede Loguear)
+                  </label>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                    (viewingEstudiante.activo === true || viewingEstudiante.estado_id === 4)
+                      ? 'bg-success-100 text-success-800 dark:bg-success-900/20 dark:text-success-400' 
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+                  }`}>
+                    {(viewingEstudiante.activo === true || viewingEstudiante.estado_id === 4) ? (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Puede loguear
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-4 w-4 mr-1" />
+                        No puede loguear
+                      </>
+                    )}
+                  </span>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                    Solo activo si estado_id = 4 (Validado - Activo). Determina si el estudiante puede iniciar sesión.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {viewingEstudiante.fecha_inscripcion && (

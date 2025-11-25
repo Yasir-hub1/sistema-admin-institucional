@@ -6,6 +6,7 @@ import Modal from '../../components/common/Modal'
 import Table from '../../components/common/Table'
 import Card from '../../components/common/Card'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
+import DocumentPreviewModal from '../../components/admin/DocumentPreviewModal'
 import toast from 'react-hot-toast'
 import { validacionDocumentoService } from '../../services/documentoService'
 
@@ -23,6 +24,8 @@ const ValidacionDocumentos = () => {
   const [showRechazarModal, setShowRechazarModal] = useState(false)
   const [documentoRechazar, setDocumentoRechazar] = useState(null)
   const [motivoRechazo, setMotivoRechazo] = useState('')
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [documentoPreview, setDocumentoPreview] = useState(null)
 
   useEffect(() => {
     fetchEstudiantes()
@@ -80,6 +83,8 @@ const ValidacionDocumentos = () => {
       
       if (response.success) {
         toast.success(response.message || 'Documento aprobado exitosamente')
+        setShowPreviewModal(false)
+        setDocumentoPreview(null)
         if (selectedEstudiante) {
           await handleVerDocumentos(selectedEstudiante)
         }
@@ -92,6 +97,34 @@ const ValidacionDocumentos = () => {
     } finally {
       setLoadingDocumentos(false)
     }
+  }
+
+  const handleRechazarDesdePreview = async (documentoId, motivo) => {
+    try {
+      setLoadingDocumentos(true)
+      const response = await validacionDocumentoService.rechazarDocumento(documentoId, motivo)
+      
+      if (response.success) {
+        toast.success(response.message || 'Documento rechazado exitosamente')
+        setShowPreviewModal(false)
+        setDocumentoPreview(null)
+        if (selectedEstudiante) {
+          await handleVerDocumentos(selectedEstudiante)
+        }
+        await fetchEstudiantes()
+      } else {
+        toast.error(response.message || 'Error al rechazar documento')
+      }
+    } catch (error) {
+      toast.error('Error al rechazar documento')
+    } finally {
+      setLoadingDocumentos(false)
+    }
+  }
+
+  const handleVerPreview = (doc) => {
+    setDocumentoPreview(doc)
+    setShowPreviewModal(true)
   }
 
   const handleRechazar = async () => {
@@ -268,64 +301,76 @@ const ValidacionDocumentos = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {documentos.map((grupo, idx) => (
-              <div key={idx} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                <h4 className="font-semibold text-lg mb-4">{grupo.tipo_documento?.nombre_entidad}</h4>
-                <div className="space-y-3">
-                  {grupo.versiones?.map((doc, docIdx) => (
-                    <div key={docIdx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          {getEstadoBadge(doc.estado)}
-                          <span className="text-sm text-gray-600 dark:text-gray-400">Versión {doc.version}</span>
-                        </div>
-                        {doc.observaciones && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{doc.observaciones}</p>
-                        )}
-                        {doc.fecha_subida && (
-                          <p className="text-xs text-gray-500">Subido: {new Date(doc.fecha_subida).toLocaleDateString()}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {doc.url_descarga && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            icon={<Download className="h-4 w-4" />}
-                            onClick={() => window.open(doc.url_descarga, '_blank')}
-                          >
-                            Ver
-                          </Button>
-                        )}
-                        {doc.estado === '0' && (
-                          <>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              icon={<CheckCircle className="h-4 w-4" />}
-                              onClick={() => handleAprobar(doc.id)}
-                            >
-                              Aprobar
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              icon={<XCircle className="h-4 w-4" />}
-                              onClick={() => {
-                                setDocumentoRechazar(doc)
-                                setShowRechazarModal(true)
-                              }}
-                            >
-                              Rechazar
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {documentos.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 dark:text-gray-400">
+                  No hay documentos para este estudiante
+                </p>
               </div>
-            ))}
+            ) : (
+              documentos.map((grupo, idx) => (
+                <div key={idx} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h4 className="font-semibold text-lg mb-4">{grupo.tipo_documento?.nombre_entidad || 'Documento'}</h4>
+                  <div className="space-y-3">
+                    {grupo.versiones?.map((doc, docIdx) => (
+                      <div key={docIdx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            {getEstadoBadge(doc.estado)}
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Versión {doc.version}</span>
+                          </div>
+                          {doc.observaciones && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{doc.observaciones}</p>
+                          )}
+                          {doc.fecha_subida && (
+                            <p className="text-xs text-gray-500">Subido: {new Date(doc.fecha_subida).toLocaleDateString()}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {doc.url_descarga && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              icon={<Eye className="h-4 w-4" />}
+                              onClick={() => handleVerPreview(doc)}
+                              title="Ver documento en vista previa"
+                            >
+                              Ver
+                            </Button>
+                          )}
+                          {doc.estado === '0' && (
+                            <>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                icon={<CheckCircle className="h-4 w-4" />}
+                                onClick={() => handleAprobar(doc.id)}
+                                title="Aprobar documento"
+                              >
+                                Aprobar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                icon={<XCircle className="h-4 w-4" />}
+                                onClick={() => {
+                                  setDocumentoRechazar(doc)
+                                  setShowRechazarModal(true)
+                                }}
+                                title="Rechazar documento"
+                              >
+                                Rechazar
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
       </Modal>
@@ -376,6 +421,20 @@ const ValidacionDocumentos = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Modal de Vista Previa de Documento */}
+      <DocumentPreviewModal
+        isOpen={showPreviewModal}
+        onClose={() => {
+          setShowPreviewModal(false)
+          setDocumentoPreview(null)
+        }}
+        documento={documentoPreview}
+        estudiante={selectedEstudiante}
+        onAprobar={handleAprobar}
+        onRechazar={handleRechazarDesdePreview}
+        loading={loadingDocumentos}
+      />
     </div>
   )
 }
