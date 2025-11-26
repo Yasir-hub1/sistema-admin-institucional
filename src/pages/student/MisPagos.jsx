@@ -219,7 +219,11 @@ const MisPagos = () => {
             <Card key={planIdx} className="gradient" shadow="glow-lg">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-xl font-bold gradient-text">{plan.programa}</h3>
+                  <h3 className="text-xl font-bold gradient-text">
+                    {typeof plan.programa === 'string' 
+                      ? plan.programa 
+                      : (plan.programa?.nombre || 'Programa sin nombre')}
+                  </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     Plan de Pago #{plan.plan_id}
                   </p>
@@ -381,7 +385,9 @@ const MisPagos = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-3">
                       <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        {cuota.programa}
+                        {typeof cuota.programa === 'string' 
+                          ? cuota.programa 
+                          : (cuota.programa?.nombre || 'Programa sin nombre')}
                       </h4>
                       {getEstadoBadge(cuota)}
                     </div>
@@ -471,7 +477,11 @@ const MisPagos = () => {
           <form onSubmit={handleSubmit(onSubmitPago)} className="space-y-6">
             <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Programa</p>
-              <p className="font-semibold text-gray-900 dark:text-gray-100">{selectedCuota.programa}</p>
+              <p className="font-semibold text-gray-900 dark:text-gray-100">
+                {typeof selectedCuota.programa === 'string' 
+                  ? selectedCuota.programa 
+                  : (selectedCuota.programa?.nombre || 'Programa sin nombre')}
+              </p>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 mb-1">Saldo Pendiente</p>
               <p className="text-lg font-bold text-yellow-600">
                 {parseFloat(selectedCuota.saldo_pendiente || selectedCuota.monto || 0).toLocaleString('es-BO', { style: 'currency', currency: 'BOB' })}

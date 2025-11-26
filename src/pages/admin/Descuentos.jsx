@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Percent, Plus, Search, Edit2, Trash2, Eye } from 'lucide-react'
+import { Percent, Plus, Search, Edit2, Trash2, Eye, Calendar } from 'lucide-react'
 import Button from '../../components/common/Button'
 import Input from '../../components/common/Input'
 import Modal from '../../components/common/Modal'
@@ -8,6 +8,7 @@ import Card from '../../components/common/Card'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { descuentoService } from '../../services/pagoService'
+import { programaService } from '../../services/planificacionService'
 
 const Descuentos = () => {
   const [descuentos, setDescuentos] = useState([])
@@ -20,13 +21,14 @@ const Descuentos = () => {
   const [showViewModal, setShowViewModal] = useState(false)
   const [editingDescuento, setEditingDescuento] = useState(null)
   const [viewingDescuento, setViewingDescuento] = useState(null)
-  const [inscripcionesSinDescuento, setInscripcionesSinDescuento] = useState([])
+  const [programas, setProgramas] = useState([])
+  const [cargandoProgramas, setCargandoProgramas] = useState(false)
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm()
 
   useEffect(() => {
     fetchDescuentos()
-    fetchInscripcionesSinDescuento()
+    fetchProgramas()
   }, [currentPage, perPage, searchTerm])
 
   const fetchDescuentos = async () => {
@@ -55,23 +57,28 @@ const Descuentos = () => {
     }
   }
 
-  const fetchInscripcionesSinDescuento = async () => {
+  const fetchProgramas = async () => {
     try {
-      const response = await descuentoService.getInscripcionesSinDescuento()
-      if (response.success) {
-        setInscripcionesSinDescuento(response.data || [])
+      setCargandoProgramas(true)
+      const response = await programaService.getProgramas({ per_page: 1000 })
+      if (response.success && response.data) {
+        setProgramas(response.data.data || [])
       }
     } catch (error) {
-      console.error('Error fetching inscripciones sin descuento:', error)
+      console.error('Error fetching programas:', error)
+    } finally {
+      setCargandoProgramas(false)
     }
   }
 
   const handleCreate = () => {
     setEditingDescuento(null)
     reset({
-      inscripcion_id: '',
+      programa_id: '',
       nombre: '',
-      descuento: ''
+      descuento: '',
+      fecha_inicio: '',
+      fecha_fin: ''
     })
     setShowModal(true)
   }
@@ -79,8 +86,11 @@ const Descuentos = () => {
   const handleEdit = (descuento) => {
     setEditingDescuento(descuento)
     reset({
+      programa_id: descuento.programa_id || '',
       nombre: descuento.nombre,
-      descuento: descuento.descuento
+      descuento: descuento.descuento,
+      fecha_inicio: descuento.fecha_inicio || '',
+      fecha_fin: descuento.fecha_fin || ''
     })
     setShowModal(true)
   }
@@ -135,7 +145,6 @@ const Descuentos = () => {
         setEditingDescuento(null)
         reset()
         await fetchDescuentos()
-        await fetchInscripcionesSinDescuento()
       } else {
         toast.error(response.message || 'Error al guardar el descuento')
         if (response.errors) {
@@ -171,26 +180,33 @@ const Descuentos = () => {
       )
     },
     {
-      key: 'estudiante',
-      label: 'Estudiante',
+      key: 'programa',
+      label: 'Programa',
       render: (row) => (
         <div>
           <div className="font-medium text-gray-900 dark:text-gray-100">
-            {row.inscripcion?.estudiante?.nombre} {row.inscripcion?.estudiante?.apellido}
+            {row.programa?.nombre || '-'}
           </div>
-          <div className="text-sm text-gray-500">
-            CI: {row.inscripcion?.estudiante?.ci}
-          </div>
+          {row.programa && (
+            <div className="text-sm text-gray-500">
+              Costo: {parseFloat(row.programa.costo || 0).toLocaleString('es-BO', { style: 'currency', currency: 'BOB' })}
+            </div>
+          )}
         </div>
       )
     },
     {
-      key: 'programa',
-      label: 'Programa',
+      key: 'vigencia',
+      label: 'Vigencia',
       render: (row) => (
-        <span className="text-gray-900 dark:text-gray-100">
-          {row.inscripcion?.programa?.nombre || '-'}
-        </span>
+        <div className="text-sm">
+          <div className="text-gray-900 dark:text-gray-100">
+            {row.fecha_inicio ? new Date(row.fecha_inicio).toLocaleDateString('es-ES') : '-'}
+          </div>
+          <div className="text-gray-500">
+            hasta {row.fecha_fin ? new Date(row.fecha_fin).toLocaleDateString('es-ES') : '-'}
+          </div>
+        </div>
       )
     },
     {
@@ -290,31 +306,30 @@ const Descuentos = () => {
         size="lg"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {!editingDescuento && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Inscripción *
-              </label>
-              <select
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
-                {...register('inscripcion_id', { required: 'La inscripción es obligatoria' })}
-              >
-                <option value="">Seleccionar inscripción</option>
-                {inscripcionesSinDescuento.map(insc => (
-                  <option key={insc.id} value={insc.id}>
-                    {insc.estudiante?.nombre} {insc.estudiante?.apellido} - {insc.programa?.nombre}
-                  </option>
-                ))}
-              </select>
-              {errors.inscripcion_id && (
-                <p className="text-red-500 text-xs mt-1">{errors.inscripcion_id.message}</p>
-              )}
-            </div>
-          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Programa *
+            </label>
+            <select
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-800 dark:text-gray-100"
+              {...register('programa_id', { required: 'El programa es obligatorio' })}
+              disabled={cargandoProgramas}
+            >
+              <option value="">{cargandoProgramas ? 'Cargando programas...' : 'Seleccionar programa'}</option>
+              {programas.map(programa => (
+                <option key={programa.id} value={programa.id}>
+                  {programa.nombre} - {parseFloat(programa.costo || 0).toLocaleString('es-BO', { style: 'currency', currency: 'BOB' })}
+                </option>
+              ))}
+            </select>
+            {errors.programa_id && (
+              <p className="text-red-500 text-xs mt-1">{errors.programa_id.message}</p>
+            )}
+          </div>
 
           <Input
             label="Nombre del Descuento *"
-            placeholder="Ej: Beca Académica, Descuento por Convenio, etc."
+            placeholder="Ej: Promo Febrero 20%, Descuento por Convenio, etc."
             error={errors.nombre?.message}
             {...register('nombre', { required: 'El nombre es obligatorio' })}
           />
@@ -333,6 +348,30 @@ const Descuentos = () => {
               max: { value: 100, message: 'El porcentaje no puede ser mayor a 100' }
             })}
           />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Fecha de Inicio *"
+              type="date"
+              error={errors.fecha_inicio?.message}
+              {...register('fecha_inicio', { required: 'La fecha de inicio es obligatoria' })}
+            />
+            <Input
+              label="Fecha de Fin *"
+              type="date"
+              error={errors.fecha_fin?.message}
+              {...register('fecha_fin', { 
+                required: 'La fecha de fin es obligatoria',
+                validate: (value) => {
+                  const fechaInicio = document.querySelector('input[name="fecha_inicio"]')?.value
+                  if (fechaInicio && value && new Date(value) < new Date(fechaInicio)) {
+                    return 'La fecha de fin debe ser posterior a la fecha de inicio'
+                  }
+                  return true
+                }
+              })}
+            />
+          </div>
           
           <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-gray-700">
             <Button
@@ -382,18 +421,44 @@ const Descuentos = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Estudiante
+                  Programa
                 </label>
                 <p className="text-gray-900 dark:text-gray-100">
-                  {viewingDescuento.inscripcion?.estudiante?.nombre} {viewingDescuento.inscripcion?.estudiante?.apellido}
+                  {viewingDescuento.programa?.nombre || '-'}
                 </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Programa
+                  Fecha de Inicio
                 </label>
                 <p className="text-gray-900 dark:text-gray-100">
-                  {viewingDescuento.inscripcion?.programa?.nombre || '-'}
+                  {viewingDescuento.fecha_inicio ? new Date(viewingDescuento.fecha_inicio).toLocaleDateString('es-ES') : '-'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Fecha de Fin
+                </label>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {viewingDescuento.fecha_fin ? new Date(viewingDescuento.fecha_fin).toLocaleDateString('es-ES') : '-'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Estado
+                </label>
+                <p className={`font-semibold ${
+                  viewingDescuento.fecha_inicio && viewingDescuento.fecha_fin &&
+                  new Date() >= new Date(viewingDescuento.fecha_inicio) &&
+                  new Date() <= new Date(viewingDescuento.fecha_fin)
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-gray-500'
+                }`}>
+                  {viewingDescuento.fecha_inicio && viewingDescuento.fecha_fin &&
+                  new Date() >= new Date(viewingDescuento.fecha_inicio) &&
+                  new Date() <= new Date(viewingDescuento.fecha_fin)
+                    ? 'Vigente'
+                    : 'No vigente'}
                 </p>
               </div>
             </div>

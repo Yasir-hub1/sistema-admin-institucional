@@ -273,13 +273,39 @@ const Pagos = () => {
                         </div>
                         <div className="flex-1">
                           <h3 className="text-2xl font-bold gradient-text mb-1">
-                            {plan.programa?.nombre || 'Programa sin nombre'}
+                            {(() => {
+                              if (!plan.programa) return 'Programa sin nombre'
+                              if (typeof plan.programa === 'string') return plan.programa
+                              if (typeof plan.programa === 'object' && plan.programa.nombre) return plan.programa.nombre
+                              return 'Programa sin nombre'
+                            })()}
                           </h3>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             Plan de Pago - {plan.total_cuotas || 0} {plan.total_cuotas === 1 ? 'cuota' : 'cuotas'}
                           </p>
                         </div>
                       </div>
+
+                      {/* Información de Descuento si existe */}
+                      {plan.descuento && (
+                        <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                          <div className="flex items-center gap-2 mb-2">
+                            <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            <p className="text-sm font-semibold text-green-700 dark:text-green-300">
+                              Descuento Aplicado: {plan.descuento.nombre} ({plan.descuento.descuento}%)
+                            </p>
+                          </div>
+                          {plan.costo_base && plan.costo_final && plan.costo_base !== plan.costo_final && (
+                            <div className="text-xs text-gray-600 dark:text-gray-400">
+                              <span>Costo Base: {formatCurrency(plan.costo_base)}</span>
+                              <span className="mx-2">→</span>
+                              <span className="font-semibold text-green-600 dark:text-green-400">
+                                Costo Final: {formatCurrency(plan.costo_final)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Resumen del Plan */}
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
@@ -288,6 +314,11 @@ const Pagos = () => {
                           <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
                             {formatCurrency(plan.monto_total || 0)}
                           </p>
+                          {plan.costo_base && plan.costo_base !== plan.monto_total && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-through">
+                              {formatCurrency(plan.costo_base)}
+                            </p>
+                          )}
                         </div>
                         <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Pagado</p>

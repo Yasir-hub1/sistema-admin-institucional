@@ -259,14 +259,29 @@ const Materias = () => {
                             <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
                               <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" />
                             </div>
-                            <div>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Costo Total</p>
+                            <div className="flex-1">
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Costo del Programa</p>
                               <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                                 {parseFloat(materia.programa.costo || 0).toLocaleString('es-BO', { 
                                   style: 'currency', 
                                   currency: 'BOB' 
                                 })}
                               </p>
+                              {materia.descuento && (
+                                <div className="mt-1 p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
+                                  <p className="text-xs text-green-700 dark:text-green-300">
+                                    <span className="font-semibold">Descuento aplicado:</span> {materia.descuento.nombre} ({materia.descuento.descuento}%)
+                                  </p>
+                                  {materia.costo_base && materia.costo_final && (
+                                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                      Base: {parseFloat(materia.costo_base || 0).toLocaleString('es-BO', { style: 'currency', currency: 'BOB' })} → 
+                                      Final: <span className="font-semibold text-green-600 dark:text-green-400">
+                                        {parseFloat(materia.costo_final || 0).toLocaleString('es-BO', { style: 'currency', currency: 'BOB' })}
+                                      </span>
+                                    </p>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}

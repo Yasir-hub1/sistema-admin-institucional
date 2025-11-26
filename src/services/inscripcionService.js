@@ -140,6 +140,56 @@ export const inscripcionService = {
         errors: error.response?.data?.errors
       }
     }
+  },
+
+  async getDescuentosDisponibles() {
+    try {
+      const response = await get('/estudiante/inscripciones/descuentos-disponibles')
+      
+      if (response.data.success) {
+        return {
+          success: true,
+          data: response.data.data,
+          message: response.data.message
+        }
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Error al obtener descuentos'
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching descuentos:', error)
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Error al obtener descuentos'
+      }
+    }
+  },
+
+  async getReglasCuotas(programaId) {
+    try {
+      const response = await get(`/estudiante/inscripciones/reglas-cuotas/${programaId}`)
+      
+      if (response.data.success) {
+        return {
+          success: true,
+          data: response.data.data,
+          message: response.data.message
+        }
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Error al obtener reglas de cuotas'
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching reglas cuotas:', error)
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Error al obtener reglas de cuotas'
+      }
+    }
   }
 }
 

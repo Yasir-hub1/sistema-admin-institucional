@@ -644,15 +644,95 @@ const Inscripciones = () => {
                 {viewingInscripcion.programa?.costo && (
                   <div>
                     <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Costo
+                    Costo Base
                   </label>
-                  <p className="text-gray-700 dark:text-gray-300">
-                    ${viewingInscripcion.programa.costo.toLocaleString('es-ES')}
-                  </p>
-                </div>
+                    <p className="text-gray-700 dark:text-gray-300">
+                      ${parseFloat(viewingInscripcion.programa.costo || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                )}
+                {viewingInscripcion.costo_base && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      Costo Base (Inscripción)
+                    </label>
+                    <p className="text-gray-700 dark:text-gray-300">
+                      ${parseFloat(viewingInscripcion.costo_base || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                )}
+                {viewingInscripcion.costo_final && viewingInscripcion.costo_final !== viewingInscripcion.costo_base && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      Costo Final (con descuento)
+                    </label>
+                    <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                      ${parseFloat(viewingInscripcion.costo_final || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
+
+            {/* Información de Descuento */}
+            {viewingInscripcion.descuento && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                  <TrendingUp className="h-5 w-5 mr-2 text-green-500" />
+                  Descuento Aplicado
+                </h3>
+                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Nombre del Descuento
+                      </label>
+                      <p className="text-lg font-bold text-green-700 dark:text-green-300">
+                        {viewingInscripcion.descuento.nombre}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        Porcentaje de Descuento
+                      </label>
+                      <p className="text-lg font-bold text-green-700 dark:text-green-300">
+                        {viewingInscripcion.descuento.descuento}%
+                      </p>
+                    </div>
+                    {viewingInscripcion.costo_base && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                            Costo Base
+                          </label>
+                          <p className="text-gray-700 dark:text-gray-300">
+                            ${parseFloat(viewingInscripcion.costo_base || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                            Descuento Aplicado
+                          </label>
+                          <p className="text-green-600 dark:text-green-400 font-semibold">
+                            - ${parseFloat((viewingInscripcion.costo_base * (viewingInscripcion.descuento.descuento / 100)) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                        {viewingInscripcion.costo_final && (
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                              Costo Final (con descuento)
+                            </label>
+                            <p className="text-xl font-bold text-gray-900 dark:text-white">
+                              ${parseFloat(viewingInscripcion.costo_final || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Información de Pago */}
             {viewingInscripcion.plan_pago && (
@@ -662,13 +742,25 @@ const Inscripciones = () => {
                   Información de Pago
                 </h3>
                 <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg space-y-4">
+                  {!viewingInscripcion.descuento && viewingInscripcion.costo_base && (
+                    <div className="mb-4 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        <span className="font-medium">Costo Base:</span> ${parseFloat(viewingInscripcion.costo_base || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {viewingInscripcion.costo_final && viewingInscripcion.costo_final !== viewingInscripcion.costo_base && (
+                          <span className="ml-2 text-green-600 dark:text-green-400">
+                            → Costo Final: ${parseFloat(viewingInscripcion.costo_final || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
                         Monto Total
                       </label>
                       <p className="text-lg font-bold text-gray-900 dark:text-white">
-                        ${viewingInscripcion.plan_pago.monto_total?.toLocaleString('es-ES') || '0'}
+                        ${viewingInscripcion.plan_pago.monto_total?.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
                       </p>
                     </div>
                     <div>

@@ -17,6 +17,8 @@ const Inscripciones = () => {
   const [selectedGrupo, setSelectedGrupo] = useState(null)
   const [conflictos, setConflictos] = useState([])
   const [verificando, setVerificando] = useState(false)
+  const [reglasCuotas, setReglasCuotas] = useState(null)
+  const [cargandoReglas, setCargandoReglas] = useState(false)
 
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({
     defaultValues: {
@@ -63,11 +65,37 @@ const Inscripciones = () => {
     setSelectedPrograma(programa)
     setSelectedGrupo(grupo)
     setConflictos([])
+    setReglasCuotas(null)
+    
     reset({
       programa_id: programa.id,
       grupo_id: grupo.id,
       numero_cuotas: 3
     })
+    
+    // Los descuentos se aplican automáticamente en el backend, no se cargan aquí
+
+    // Cargar reglas de cuotas
+    setCargandoReglas(true)
+    try {
+      const reglasResponse = await inscripcionService.getReglasCuotas(programa.id)
+      if (reglasResponse.success) {
+        setReglasCuotas(reglasResponse.data)
+        // Establecer valor por defecto según reglas
+        const defaultCuotas = reglasResponse.data.min_cuotas || 3
+        reset({
+          programa_id: programa.id,
+          grupo_id: grupo.id,
+          numero_cuotas: defaultCuotas
+        })
+      }
+    } catch (error) {
+      console.error('Error cargando reglas de cuotas:', error)
+      // Usar valores por defecto
+      setReglasCuotas({ min_cuotas: 1, max_cuotas: 12 })
+    } finally {
+      setCargandoReglas(false)
+    }
     
     // Verificar conflictos de horario
     setVerificando(true)
@@ -99,18 +127,32 @@ const Inscripciones = () => {
 
     try {
       setLoading(true)
-      const response = await inscripcionService.crearInscripcion({
+      const payload = {
         programa_id: selectedPrograma.id,
         grupo_id: selectedGrupo.id,
         numero_cuotas: parseInt(data.numero_cuotas)
-      })
+      }
+      
+      // El descuento se aplica automáticamente en el backend según el programa
+      
+      const response = await inscripcionService.crearInscripcion(payload)
       
       if (response.success) {
-        toast.success(response.message || 'Inscripción realizada exitosamente')
+        // Mostrar resumen con descuento aplicado si existe
+        const resumen = response.data?.resumen
+        if (resumen?.descuento_nombre && resumen?.descuento_porcentaje) {
+          toast.success(
+            `Inscripción realizada exitosamente. Descuento aplicado: ${resumen.descuento_nombre} (${resumen.descuento_porcentaje}%)`,
+            { duration: 6000 }
+          )
+        } else {
+          toast.success(response.message || 'Inscripción realizada exitosamente')
+        }
         setShowModal(false)
         setSelectedPrograma(null)
         setSelectedGrupo(null)
         setConflictos([])
+        setReglasCuotas(null)
         reset()
         await fetchProgramas()
       } else {
@@ -127,6 +169,12 @@ const Inscripciones = () => {
       setLoading(false)
     }
   }
+
+  // El costo final se calcula en el backend automáticamente con el descuento aplicado
+  const costoBase = selectedPrograma ? parseFloat(selectedPrograma.costo || 0) : 0
+  // Nota: El descuento se aplica automáticamente en el backend, aquí solo mostramos el costo base
+  // Usamos costoBase como referencia, el costo final se mostrará después de la inscripción
+  const costoFinal = costoBase
 
   const formatHorario = (horario) => {
     if (!horario) return '-'
@@ -365,6 +413,7 @@ const Inscripciones = () => {
           setSelectedPrograma(null)
           setSelectedGrupo(null)
           setConflictos([])
+          setReglasCuotas(null)
           reset()
         }}
         title="Confirmar Inscripción"
@@ -444,25 +493,101 @@ const Inscripciones = () => {
 
             {conflictos.length === 0 && (
               <>
-                <Input
-                  label="Número de Cuotas *"
-                  type="number"
-                  min="1"
-                  max="12"
-                  placeholder="3"
-                  error={errors.numero_cuotas?.message}
-                  {...register('numero_cuotas', { 
-                    required: 'El número de cuotas es obligatorio',
-                    min: { value: 1, message: 'Mínimo 1 cuota' },
-                    max: { value: 12, message: 'Máximo 12 cuotas' }
-                  })}
-                />
+                {/* Información de Costo */}
+                <div className="p-4 bg-gradient-to-br from-gray-50 to-slate-50 dark:from-gray-800 dark:to-slate-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <h5 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Información del Programa</h5>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Costo Base del Programa:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {costoBase.toLocaleString('es-BO', { style: 'currency', currency: 'BOB' })}
+                      </span>
+                    </div>
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        💡 El sistema aplicará automáticamente cualquier descuento vigente para este programa al confirmar la inscripción.
+                      </p>
+                      <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+                        ℹ️ Si hay descuentos activos, se mostrarán en el resumen después de la inscripción.
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-                {numeroCuotas && selectedPrograma.costo && (
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                {/* Paso 12: Selección del Número de Cuotas (Opciones Predefinidas) */}
+                {reglasCuotas && reglasCuotas.opciones_cuotas ? (
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Número de Cuotas *
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {reglasCuotas.opciones_cuotas.map((opcion) => (
+                        <label
+                          key={opcion.valor}
+                          className={`relative flex items-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                            numeroCuotas == opcion.valor
+                              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            value={opcion.valor}
+                            {...register('numero_cuotas', { 
+                              required: 'Debes seleccionar un número de cuotas'
+                            })}
+                            className="sr-only"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                {opcion.label}
+                              </span>
+                              {opcion.sin_interes && (
+                                <span className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full">
+                                  Sin interés
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {numeroCuotas == opcion.valor && (
+                            <CheckCircle className="h-5 w-5 text-primary-600 dark:text-primary-400 ml-2" />
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                    {errors.numero_cuotas && (
+                      <p className="text-sm text-red-600 dark:text-red-400">{errors.numero_cuotas.message}</p>
+                    )}
+                    {reglasCuotas.descripcion && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{reglasCuotas.descripcion}</p>
+                    )}
+                  </div>
+                ) : (
+                  <Input
+                    label="Número de Cuotas *"
+                    type="number"
+                    min="1"
+                    max="12"
+                    placeholder="3"
+                    error={errors.numero_cuotas?.message}
+                    {...register('numero_cuotas', { 
+                      required: 'El número de cuotas es obligatorio',
+                      min: { value: 1, message: 'Mínimo 1 cuota' },
+                      max: { value: 12, message: 'Máximo 12 cuotas' }
+                    })}
+                  />
+                )}
+
+                {/* Monto por Cuota */}
+                {numeroCuotas && costoFinal > 0 && (
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Monto por cuota:</p>
                     <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                      {parseFloat((selectedPrograma.costo / numeroCuotas) || 0).toLocaleString('es-BO', { style: 'currency', currency: 'BOB' })}
+                      {parseFloat((costoFinal / numeroCuotas) || 0).toLocaleString('es-BO', { style: 'currency', currency: 'BOB' })}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {numeroCuotas} cuota{numeroCuotas !== 1 ? 's' : ''} de {parseFloat((costoFinal / numeroCuotas) || 0).toLocaleString('es-BO', { style: 'currency', currency: 'BOB' })}
                     </p>
                   </div>
                 )}
