@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { GraduationCap, Calendar, Clock, Users, DollarSign, AlertCircle, CheckCircle, XCircle } from 'lucide-react'
+import { GraduationCap, Calendar, Clock, Users, DollarSign, AlertCircle, CheckCircle, XCircle, BookOpen, User, MapPin, CalendarDays } from 'lucide-react'
 import Button from '../../components/common/Button'
 import Card from '../../components/common/Card'
 import Modal from '../../components/common/Modal'
@@ -196,53 +196,157 @@ const Inscripciones = () => {
 
               {programa.grupos_disponibles && programa.grupos_disponibles.length > 0 && (
                 <div className="space-y-4">
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">Grupos Disponibles:</h4>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Users className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      Grupos Disponibles ({programa.grupos_disponibles.length})
+                    </h4>
+                  </div>
                   {programa.grupos_disponibles.map((grupo) => (
                     <div
                       key={grupo.id}
-                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
+                      className="border-2 border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-lg transition-all duration-200 bg-white dark:bg-gray-800"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h5 className="font-semibold text-gray-900 dark:text-gray-100">
-                              {grupo.modulo || 'Grupo'}
-                            </h5>
-                            {grupo.cupos_disponibles > 0 && (
-                              <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
-                                {grupo.cupos_disponibles} cupos disponibles
-                              </span>
-                            )}
-                          </div>
-                          {grupo.docente && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                              Docente: {grupo.docente}
-                            </p>
-                          )}
-                          <div className="space-y-1">
-                            {grupo.horarios && grupo.horarios.length > 0 ? (
-                              grupo.horarios.map((horario, idx) => (
-                                <div key={idx} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                                  <Clock className="h-4 w-4" />
-                                  <span>{formatHorario(horario)}</span>
-                                  {horario.aula && <span className="text-xs">({horario.aula})</span>}
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
+                        <div className="flex-1 space-y-4">
+                          {/* Header del Grupo */}
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-accent-500 rounded-lg flex items-center justify-center">
+                                  <BookOpen className="h-5 w-5 text-white" />
                                 </div>
-                              ))
-                            ) : (
-                              <p className="text-sm text-gray-500">Sin horarios asignados</p>
-                            )}
+                                <div>
+                                  <h5 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                                    {grupo.modulo || 'Grupo sin nombre'}
+                                  </h5>
+                                  {grupo.cupos_disponibles !== undefined && (
+                                    <div className="flex items-center gap-2 mt-1">
+                                      {grupo.cupos_disponibles > 0 ? (
+                                        <span className="text-xs px-2.5 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full font-medium flex items-center gap-1">
+                                          <CheckCircle className="h-3 w-3" />
+                                          {grupo.cupos_disponibles} cupo{grupo.cupos_disponibles !== 1 ? 's' : ''} disponible{grupo.cupos_disponibles !== 1 ? 's' : ''}
+                                        </span>
+                                      ) : (
+                                        <span className="text-xs px-2.5 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full font-medium">
+                                          Sin cupos disponibles
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <p className="text-xs text-gray-500 mt-2">
-                            {new Date(grupo.fecha_ini).toLocaleDateString()} - {new Date(grupo.fecha_fin).toLocaleDateString()}
-                          </p>
+
+                          {/* Información del Docente */}
+                          {grupo.docente && (
+                            <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                              <User className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                              <div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Docente Responsable</p>
+                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                  {grupo.docente}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Horarios con Aulas */}
+                          {grupo.horarios && grupo.horarios.length > 0 ? (
+                            <div className="space-y-2">
+                              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                                Horarios y Aulas
+                              </p>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {grupo.horarios.map((horario, idx) => (
+                                  <div 
+                                    key={idx} 
+                                    className="p-3 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <div className="w-8 h-8 bg-blue-500 dark:bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <Clock className="h-4 w-4 text-white" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <CalendarDays className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                                          <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                            {horario.dias || 'Sin días asignados'}
+                                          </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <Clock className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400" />
+                                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                                            {horario.hora_ini || 'N/A'} - {horario.hora_fin || 'N/A'}
+                                          </span>
+                                        </div>
+                                        {horario.aula && (
+                                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+                                            <MapPin className="h-3.5 w-3.5 text-primary-600 dark:text-primary-400" />
+                                            <span className="text-xs font-medium text-primary-700 dark:text-primary-300">
+                                              Aula: {horario.aula}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                              <p className="text-sm text-yellow-700 dark:text-yellow-300 flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4" />
+                                Sin horarios asignados
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Fechas del Grupo */}
+                          <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <Calendar className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                            <div className="flex-1">
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Período del Grupo</p>
+                              <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                <span className="font-medium">
+                                  {grupo.fecha_ini 
+                                    ? new Date(grupo.fecha_ini).toLocaleDateString('es-ES', { 
+                                        day: 'numeric', 
+                                        month: 'long', 
+                                        year: 'numeric' 
+                                      })
+                                    : 'N/A'}
+                                </span>
+                                <span className="text-gray-400">→</span>
+                                <span className="font-medium">
+                                  {grupo.fecha_fin 
+                                    ? new Date(grupo.fecha_fin).toLocaleDateString('es-ES', { 
+                                        day: 'numeric', 
+                                        month: 'long', 
+                                        year: 'numeric' 
+                                      })
+                                    : 'N/A'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => handleInscribirse(programa, grupo)}
-                        >
-                          Inscribirse
-                        </Button>
+
+                        {/* Botón de Inscripción */}
+                        <div className="flex lg:flex-col items-center lg:items-stretch gap-3 lg:min-w-[140px]">
+                          <Button
+                            variant="primary"
+                            size="md"
+                            onClick={() => handleInscribirse(programa, grupo)}
+                            disabled={grupo.cupos_disponibles === 0}
+                            className="w-full lg:w-auto"
+                            icon={<CheckCircle className="h-4 w-4" />}
+                          >
+                            {grupo.cupos_disponibles === 0 ? 'Sin Cupos' : 'Inscribirse'}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}

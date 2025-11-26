@@ -26,10 +26,11 @@ const Grupos = () => {
   const [grupos, setGrupos] = useState([])
   const [datosFormulario, setDatosFormulario] = useState({
     programas: [],
-    modulos: [],
+    modulos: [], // Se cargarán dinámicamente por programa
     docentes: [],
     horarios: []
   })
+  const [modulosPorPrograma, setModulosPorPrograma] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedPrograma, setSelectedPrograma] = useState('')
@@ -64,12 +65,46 @@ const Grupos = () => {
     fetchGrupos()
   }, [currentPage, perPage, searchTerm, selectedPrograma, selectedModulo, selectedDocente])
 
+  // Cargar módulos cuando se selecciona un programa
   useEffect(() => {
-    // Filtrar módulos cuando cambia el programa seleccionado
-    if (programaId && datosFormulario.programas.length > 0) {
-      // Aquí podrías filtrar módulos del programa si es necesario
+    const cargarModulosPorPrograma = async () => {
+      if (programaId && programaId !== '') {
+        try {
+          const response = await grupoService.getModulosPorPrograma(programaId)
+          if (response.success && response.data) {
+            setModulosPorPrograma(response.data)
+            // Limpiar módulo seleccionado si no está en la nueva lista
+            const moduloActual = watch('modulo_id')
+            if (moduloActual && !response.data.some(m => {
+              const modId = m.id || m.modulo_id
+              return modId === parseInt(moduloActual)
+            })) {
+              const currentValues = watch()
+              reset({ ...currentValues, modulo_id: '' })
+            }
+          } else {
+            setModulosPorPrograma([])
+            if (response.message) {
+              toast.error(response.message)
+            }
+          }
+        } catch (error) {
+          console.error('Error al cargar módulos:', error)
+          setModulosPorPrograma([])
+        }
+      } else {
+        setModulosPorPrograma([])
+        // Limpiar módulo seleccionado si no hay programa
+        const currentValues = watch()
+        if (currentValues.modulo_id) {
+          reset({ ...currentValues, modulo_id: '' })
+        }
+      }
     }
-  }, [programaId, datosFormulario])
+
+    cargarModulosPorPrograma()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [programaId])
 
   const fetchDatosFormulario = async () => {
     try {
@@ -303,6 +338,19 @@ const Grupos = () => {
           modulo_id: grupoData.modulo_id?.toString() || '',
           docente_id: grupoData.docente_id?.toString() || ''
         })
+
+        // Cargar módulos del programa cuando se edita
+        if (grupoData.programa_id) {
+          grupoService.getModulosPorPrograma(grupoData.programa_id)
+            .then(response => {
+              if (response.success && response.data) {
+                setModulosPorPrograma(response.data)
+              }
+            })
+            .catch(error => {
+              console.error('Error al cargar módulos:', error)
+            })
+        }
 
         // Cargar horarios asociados
         if (grupoData.horarios && grupoData.horarios.length > 0) {
@@ -635,10 +683,17 @@ const Grupos = () => {
               <select
                 {...register('modulo_id', { required: 'El módulo es requerido' })}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 dark:bg-gray-800"
+                disabled={!programaId || programaId === ''}
               >
-                <option value="">Seleccionar módulo...</option>
-                {Array.isArray(datosFormulario.modulos) && datosFormulario.modulos.length > 0 ? (
-                  datosFormulario.modulos.map(mod => {
+                <option value="">
+                  {!programaId || programaId === '' 
+                    ? 'Primero seleccione un programa...' 
+                    : modulosPorPrograma.length === 0 
+                      ? (loading ? 'Cargando módulos...' : 'No hay módulos disponibles para este programa')
+                      : 'Seleccionar módulo...'}
+                </option>
+                {Array.isArray(modulosPorPrograma) && modulosPorPrograma.length > 0 ? (
+                  modulosPorPrograma.map(mod => {
                     const modId = mod.id || mod.modulo_id
                     return (
                       <option key={modId} value={modId}>
@@ -646,11 +701,7 @@ const Grupos = () => {
                       </option>
                     )
                   })
-                ) : (
-                  <option value="" disabled>
-                    {loading ? 'Cargando módulos...' : 'No hay módulos disponibles'}
-                  </option>
-                )}
+                ) : null}
               </select>
               {errors.modulo_id && (
                 <p className="mt-1 text-sm text-error-600">{errors.modulo_id.message}</p>
@@ -863,7 +914,13 @@ const Grupos = () => {
                   Fecha Inicio
                 </label>
                 <p className="text-gray-700 dark:text-gray-300">
-                  {viewingGrupo.fecha_ini || 'N/A'}
+                  {viewingGrupo.fecha_ini 
+                    ? new Date(viewingGrupo.fecha_ini).toLocaleDateString('es-ES', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })
+                    : 'N/A'}
                 </p>
               </div>
               <div>
@@ -871,7 +928,13 @@ const Grupos = () => {
                   Fecha Fin
                 </label>
                 <p className="text-gray-700 dark:text-gray-300">
-                  {viewingGrupo.fecha_fin || 'N/A'}
+                  {viewingGrupo.fecha_fin 
+                    ? new Date(viewingGrupo.fecha_fin).toLocaleDateString('es-ES', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })
+                    : 'N/A'}
                 </p>
               </div>
             </div>

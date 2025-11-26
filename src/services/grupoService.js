@@ -148,7 +148,8 @@ export const grupoService = {
   },
 
   /**
-   * Obtener datos para formularios (programas, módulos, docentes, horarios)
+   * Obtener datos para formularios (programas, docentes, horarios)
+   * Nota: Los módulos se obtienen por programa
    * @returns {Promise<object>} Datos para formularios
    */
   async getDatosFormulario() {
@@ -171,6 +172,35 @@ export const grupoService = {
       return {
         success: false,
         message: error.response?.data?.message || error.message || 'Error al obtener datos del formulario'
+      }
+    }
+  },
+
+  /**
+   * Obtener módulos por programa
+   * @param {number} programaId - ID del programa
+   * @returns {Promise<object>} Módulos del programa
+   */
+  async getModulosPorPrograma(programaId) {
+    try {
+      const response = await get(`/admin/grupos/modulos-por-programa/${programaId}`)
+
+      if (response.data.success) {
+        return {
+          success: true,
+          data: response.data.data,
+          message: response.data.message
+        }
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Error al obtener módulos del programa'
+        }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Error al obtener módulos del programa'
       }
     }
   },
