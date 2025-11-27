@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react'
-import { CreditCard, DollarSign, Calendar, CheckCircle, XCircle, Clock, Upload } from 'lucide-react'
+import { CreditCard, DollarSign, Calendar, CheckCircle, XCircle, Clock, QrCode, AlertTriangle } from 'lucide-react'
 import Button from '../../components/common/Button'
 import Card from '../../components/common/Card'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import Modal from '../../components/common/Modal'
-import Input from '../../components/common/Input'
+import QRModal from '../../components/estudiante/QRModal'
 import toast from 'react-hot-toast'
 import { estudiantePagoService } from '../../services/pagoService'
-import { useForm } from 'react-hook-form'
 
 const MisPagos = () => {
   const [cuotas, setCuotas] = useState([])
   const [planes, setPlanes] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showPagoModal, setShowPagoModal] = useState(false)
+  const [showQRModal, setShowQRModal] = useState(false)
+  const [showPagoExitosoModal, setShowPagoExitosoModal] = useState(false)
   const [selectedCuota, setSelectedCuota] = useState(null)
+  const [pagoConfirmado, setPagoConfirmado] = useState(null)
   const [estadisticas, setEstadisticas] = useState({
     total_cuotas: 0,
     cuotas_pagadas: 0,
@@ -23,8 +24,6 @@ const MisPagos = () => {
     planes_completos: 0,
     planes_pendientes: 0
   })
-
-  const { register, handleSubmit, reset, formState: { errors } } = useForm()
 
   useEffect(() => {
     fetchCuotas()
@@ -58,43 +57,25 @@ const MisPagos = () => {
     }
   }
 
-  const handleRegistrarPago = (cuota) => {
+  const handlePagarCuota = (cuota) => {
     setSelectedCuota(cuota)
-    reset({
-      monto: cuota.saldo_pendiente || cuota.monto,
-      token: ''
-    })
-    setShowPagoModal(true)
+    setShowQRModal(true)
   }
 
-  const onSubmitPago = async (data) => {
-    try {
-      setLoading(true)
-      const response = await estudiantePagoService.registrarPago(
-        selectedCuota.id,
-        parseFloat(data.monto),
-        data.token
-      )
-      
-      if (response.success) {
-        toast.success(response.message || 'Pago registrado exitosamente')
-        setShowPagoModal(false)
-        setSelectedCuota(null)
-        reset()
-        await fetchCuotas()
-      } else {
-        toast.error(response.message || 'Error al registrar pago')
-        if (response.errors) {
-          Object.keys(response.errors).forEach(key => {
-            toast.error(`${key}: ${response.errors[key]}`)
-          })
-        }
-      }
-    } catch (error) {
-      toast.error('Error al registrar pago')
-    } finally {
-      setLoading(false)
-    }
+  const handlePaymentSuccess = async (pagoData) => {
+    // Cerrar modal de QR
+    setShowQRModal(false)
+    setSelectedCuota(null)
+    
+    // Mostrar modal de pago exitoso
+    setPagoConfirmado(pagoData)
+    setShowPagoExitosoModal(true)
+    
+    // Recargar datos
+    await fetchCuotas()
+    
+    // Notificar al admin (el backend ya lo hace automáticamente, pero podemos mostrar confirmación)
+    toast.success('Pago confirmado exitosamente. Se ha notificado al administrador.')
   }
 
   const getEstadoBadge = (cuota) => {
@@ -345,10 +326,10 @@ const MisPagos = () => {
                           <Button
                             variant="primary"
                             size="sm"
-                            icon={<Upload className="h-4 w-4" />}
-                            onClick={() => handleRegistrarPago(cuota)}
+                            icon={<QrCode className="h-4 w-4" />}
+                            onClick={() => handlePagarCuota(cuota)}
                           >
-                            Pagar
+                            Pagar con QR
                           </Button>
                         </div>
                       )}
@@ -448,10 +429,10 @@ const MisPagos = () => {
                       <Button
                         variant="primary"
                         size="sm"
-                        icon={<Upload className="h-4 w-4" />}
-                        onClick={() => handleRegistrarPago(cuota)}
+                        icon={<QrCode className="h-4 w-4" />}
+                        onClick={() => handlePagarCuota(cuota)}
                       >
-                        Registrar Pago
+                        Pagar con QR
                       </Button>
                     </div>
                   )}
@@ -462,76 +443,117 @@ const MisPagos = () => {
         </div>
       </Card>
 
-      {/* Modal de Registrar Pago */}
+      {/* Modal de QR */}
+      {selectedCuota && (
+        <QRModal
+          isOpen={showQRModal}
+          onClose={() => {
+            setShowQRModal(false)
+            setSelectedCuota(null)
+          }}
+          cuotaId={selectedCuota.id}
+          cuotaInfo={{
+            saldo_pendiente: selectedCuota.saldo_pendiente || selectedCuota.monto,
+            monto: selectedCuota.monto,
+            concepto: `Cuota - ${typeof selectedCuota.programa === 'string' 
+              ? selectedCuota.programa 
+              : (selectedCuota.programa?.nombre || 'Programa')}`,
+            fecha_ini: selectedCuota.fecha_ini,
+            fecha_inscripcion: selectedCuota.fecha_inscripcion
+          }}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
+
+      {/* Modal de Pago Exitoso */}
       <Modal
-        isOpen={showPagoModal}
+        isOpen={showPagoExitosoModal}
         onClose={() => {
-          setShowPagoModal(false)
-          setSelectedCuota(null)
-          reset()
+          setShowPagoExitosoModal(false)
+          setPagoConfirmado(null)
         }}
-        title="Registrar Pago"
+        title="Pago Confirmado"
         size="md"
       >
-        {selectedCuota && (
-          <form onSubmit={handleSubmit(onSubmitPago)} className="space-y-6">
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Programa</p>
-              <p className="font-semibold text-gray-900 dark:text-gray-100">
-                {typeof selectedCuota.programa === 'string' 
-                  ? selectedCuota.programa 
-                  : (selectedCuota.programa?.nombre || 'Programa sin nombre')}
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 mb-1">Saldo Pendiente</p>
-              <p className="text-lg font-bold text-yellow-600">
-                {parseFloat(selectedCuota.saldo_pendiente || selectedCuota.monto || 0).toLocaleString('es-BO', { style: 'currency', currency: 'BOB' })}
+        {pagoConfirmado && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-center">
+              <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                <CheckCircle className="h-12 w-12 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                ¡Pago Confirmado Exitosamente!
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                Tu pago ha sido verificado y aplicado a tu cuenta
               </p>
             </div>
 
-            <Input
-              label="Monto a Pagar *"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              error={errors.monto?.message}
-              {...register('monto', { 
-                required: 'El monto es obligatorio',
-                min: { value: 0.01, message: 'El monto debe ser mayor a 0' },
-                max: { 
-                  value: selectedCuota.saldo_pendiente || selectedCuota.monto || 0, 
-                  message: 'El monto no puede exceder el saldo pendiente' 
-                }
-              })}
-            />
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Monto Pagado:</span>
+                  <span className="font-bold text-lg text-gray-900 dark:text-gray-100">
+                    {new Intl.NumberFormat('es-BO', {
+                      style: 'currency',
+                      currency: 'BOB'
+                    }).format(pagoConfirmado.monto || 0)}
+                  </span>
+                </div>
+                {pagoConfirmado.nro_pago && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Número de Pago:</span>
+                    <span className="font-mono text-sm text-gray-900 dark:text-gray-100">
+                      {pagoConfirmado.nro_pago}
+                    </span>
+                  </div>
+                )}
+                {pagoConfirmado.fecha_verificacion && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Fecha de Pago:</span>
+                    <span className="text-sm text-gray-900 dark:text-gray-100">
+                      {new Date(pagoConfirmado.fecha_verificacion).toLocaleString('es-ES', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
 
-            <Input
-              label="Token/Número de Transacción *"
-              placeholder="Ingresa el número de transacción o token del pago"
-              error={errors.token?.message}
-              {...register('token', { required: 'El token es obligatorio' })}
-            />
-            
-            <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <CheckCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-blue-800 dark:text-blue-300">
+                  <p className="font-semibold mb-1">Notificación Enviada</p>
+                  <p>
+                    Se ha notificado automáticamente al administrador sobre tu pago. 
+                    Tu comprobante ha sido registrado en el sistema.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
               <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowPagoModal(false)
-                  setSelectedCuota(null)
-                  reset()
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
                 variant="primary"
-                icon={<Upload className="h-5 w-5" />}
+                onClick={() => {
+                  setShowPagoExitosoModal(false)
+                  setPagoConfirmado(null)
+                }}
+                icon={<CheckCircle className="h-4 w-4" />}
               >
-                Registrar Pago
+                Entendido
               </Button>
             </div>
-          </form>
+          </div>
         )}
       </Modal>
     </div>

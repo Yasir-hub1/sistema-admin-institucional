@@ -30,6 +30,7 @@ const Pagos = () => {
   const [error, setError] = useState(null)
   const [showQRModal, setShowQRModal] = useState(false)
   const [selectedCuotaId, setSelectedCuotaId] = useState(null)
+  const [selectedCuotaInfo, setSelectedCuotaInfo] = useState(null)
   const [planesExpandidos, setPlanesExpandidos] = useState({})
   const [resumen, setResumen] = useState({
     total_cuotas: 0,
@@ -91,37 +92,37 @@ const Pagos = () => {
     const estadoLower = estado?.toLowerCase() || ''
     
     if (estadoLower === 'pagada' || estadoLower === 'pagado' || estadoLower === 'verificado') {
-      return (
+        return (
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
           <CheckCircle className="h-3.5 w-3.5" />
           Pagada
-        </span>
-      )
+          </span>
+        )
     }
     
     if (estadoLower === 'vencida' || estadoLower === 'vencido') {
-      return (
+        return (
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
           <XCircle className="h-3.5 w-3.5" />
           Vencida
-        </span>
-      )
+          </span>
+        )
     }
     
     if (estadoLower === 'pendiente') {
-      return (
+        return (
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300">
           <Clock className="h-3.5 w-3.5" />
           Pendiente
-        </span>
-      )
+          </span>
+        )
     }
     
-    return (
+        return (
       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-        {estado || 'Sin estado'}
-      </span>
-    )
+            {estado || 'Sin estado'}
+          </span>
+        )
   }
 
   const formatCurrency = (amount) => {
@@ -169,8 +170,8 @@ const Pagos = () => {
         <div>
           <h1 className="text-3xl font-bold gradient-text">Mis Pagos</h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Consulta y gestiona tus pagos y cuotas académicas
-          </p>
+          Consulta y gestiona tus pagos y cuotas académicas
+        </p>
         </div>
       </div>
 
@@ -211,32 +212,86 @@ const Pagos = () => {
                 <p className="text-2xl font-bold mt-1">{resumen.cuotas_pendientes || cuotasPendientes.length}</p>
               </div>
               <FileText className="h-10 w-10 text-purple-200" />
-            </div>
-          </Card>
+          </div>
+        </Card>
         </div>
       )}
 
-      {/* Alerta de Pagos Pendientes */}
-      {cuotasPendientes.length > 0 && (
-        <Card className="bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-2 border-yellow-300 dark:border-yellow-700">
-          <div className="p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-6 w-6 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                  Tienes {cuotasPendientes.length} {cuotasPendientes.length === 1 ? 'cuota pendiente' : 'cuotas pendientes'}
-                </h3>
-                <p className="text-gray-700 dark:text-gray-300 mb-2">
-                  Total pendiente: <span className="font-bold text-yellow-700 dark:text-yellow-300">{formatCurrency(totalPendiente)}</span>
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Realiza tus pagos a tiempo para mantener tu inscripción activa
-                </p>
+      {/* Alerta de Pagos Pendientes con 14 horas */}
+      {cuotasPendientes.length > 0 && (() => {
+        // Calcular horas restantes desde la inscripción más reciente
+        const calcularHorasRestantes = () => {
+          if (planes.length === 0) return null
+          
+          // Buscar la fecha de inscripción más reciente
+          let fechaInscripcionMasReciente = null
+          planes.forEach(plan => {
+            if (plan.fecha_inscripcion) {
+              const fechaInsc = new Date(plan.fecha_inscripcion)
+              if (!fechaInscripcionMasReciente || fechaInsc > fechaInscripcionMasReciente) {
+                fechaInscripcionMasReciente = fechaInsc
+              }
+            }
+          })
+          
+          if (!fechaInscripcionMasReciente) return null
+          
+          const ahora = new Date()
+          const diffMs = ahora - fechaInscripcionMasReciente
+          const diffHours = diffMs / (1000 * 60 * 60)
+          const horasRestantes = 14 - diffHours
+          
+          return horasRestantes > 0 ? horasRestantes : 0
+        }
+        
+        const horasRestantes = calcularHorasRestantes()
+        const mostrarAlerta = horasRestantes !== null && horasRestantes <= 14 && horasRestantes > 0
+        
+        return mostrarAlerta ? (
+          <Card className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-2 border-red-300 dark:border-red-700 animate-pulse">
+            <div className="p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0 animate-bounce" />
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                    ⚠️ Alerta Crítica: Pago Pendiente
+                  </h3>
+                  <p className="text-gray-700 dark:text-gray-300 mb-2">
+                    Tienes <span className="font-bold text-red-700 dark:text-red-300">{cuotasPendientes.length} {cuotasPendientes.length === 1 ? 'cuota pendiente' : 'cuotas pendientes'}</span> por un total de <span className="font-bold text-red-700 dark:text-red-300">{formatCurrency(totalPendiente)}</span>
+                  </p>
+                  <div className="bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg p-3 mt-3">
+                    <p className="text-sm font-semibold text-red-900 dark:text-red-100 mb-1">
+                      ⏰ Tiempo Restante: {Math.floor(horasRestantes)} {Math.floor(horasRestantes) === 1 ? 'hora' : 'horas'} {Math.floor((horasRestantes % 1) * 60)} minutos
+                    </p>
+                    <p className="text-sm text-red-800 dark:text-red-200">
+                      Si no realizas el pago dentro de <span className="font-bold">14 horas</span> desde la inscripción, tu inscripción será <span className="font-bold">cancelada automáticamente</span>. Realiza el pago ahora para mantener tu lugar en el programa.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      )}
+          </Card>
+        ) : cuotasPendientes.length > 0 ? (
+          <Card className="bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-2 border-yellow-300 dark:border-yellow-700">
+            <div className="p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-6 w-6 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                    Tienes {cuotasPendientes.length} {cuotasPendientes.length === 1 ? 'cuota pendiente' : 'cuotas pendientes'}
+                  </h3>
+                  <p className="text-gray-700 dark:text-gray-300 mb-2">
+                    Total pendiente: <span className="font-bold text-yellow-700 dark:text-yellow-300">{formatCurrency(totalPendiente)}</span>
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Realiza tus pagos a tiempo para mantener tu inscripción activa
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        ) : null
+      })()}
 
       {/* Lista de Planes de Pago por Inscripción */}
       {planes.length === 0 ? (
@@ -263,7 +318,7 @@ const Pagos = () => {
                 key={plan.plan_id} 
                 className="gradient hover:shadow-glow-lg transition-all duration-200 border-2 border-gray-200 dark:border-gray-700"
               >
-                <div className="p-6">
+              <div className="p-6">
                   {/* Header del Plan */}
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex-1">
@@ -271,7 +326,7 @@ const Pagos = () => {
                         <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-accent-500 rounded-xl flex items-center justify-center">
                           <GraduationCap className="h-6 w-6 text-white" />
                         </div>
-                        <div className="flex-1">
+                  <div className="flex-1">
                           <h3 className="text-2xl font-bold gradient-text mb-1">
                             {(() => {
                               if (!plan.programa) return 'Programa sin nombre'
@@ -279,7 +334,7 @@ const Pagos = () => {
                               if (typeof plan.programa === 'object' && plan.programa.nombre) return plan.programa.nombre
                               return 'Programa sin nombre'
                             })()}
-                          </h3>
+                    </h3>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             Plan de Pago - {plan.total_cuotas || 0} {plan.total_cuotas === 1 ? 'cuota' : 'cuotas'}
                           </p>
@@ -317,9 +372,9 @@ const Pagos = () => {
                           {plan.costo_base && plan.costo_base !== plan.monto_total && (
                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-through">
                               {formatCurrency(plan.costo_base)}
-                            </p>
-                          )}
-                        </div>
+                      </p>
+                    )}
+                  </div>
                         <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Pagado</p>
                           <p className="text-lg font-bold text-green-600 dark:text-green-400">
@@ -426,9 +481,9 @@ const Pagos = () => {
                                           </>
                                         )}
                                       </p>
-                                    </div>
-                                  </div>
-                                  
+                  </div>
+                </div>
+
                                   <div className="flex items-center gap-4 mt-3 text-sm">
                                     <div>
                                       <span className="text-gray-500 dark:text-gray-400">Monto: </span>
@@ -450,21 +505,33 @@ const Pagos = () => {
                                         <span className="font-semibold text-green-600 dark:text-green-400">
                                           {formatCurrency(cuota.monto_pagado || 0)}
                                         </span>
-                                      </div>
-                                    )}
+                  </div>
+                )}
                                   </div>
                                 </div>
                                 
                                 <div className="flex flex-col items-end gap-2">
                                   {getEstadoBadge(cuota.estado)}
-                                  
+
                                   {estaPendiente && (
-                                    <Button
-                                      variant="primary"
-                                      size="sm"
-                                      onClick={() => {
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
                                         if (cuota.id) {
                                           setSelectedCuotaId(cuota.id)
+                                          setSelectedCuotaInfo({
+                                            saldo_pendiente: cuota.saldo_pendiente || cuota.monto,
+                                            monto: cuota.monto,
+                                            concepto: `Cuota ${idx + 1} - ${(() => {
+                                              if (!plan.programa) return 'Programa'
+                                              if (typeof plan.programa === 'string') return plan.programa
+                                              if (typeof plan.programa === 'object' && plan.programa.nombre) return plan.programa.nombre
+                                              return 'Programa'
+                                            })()}`,
+                                            fecha_ini: cuota.fecha_ini,
+                                            fecha_inscripcion: plan.fecha_inscripcion || cuota.fecha_inscripcion
+                                          })
                                           setShowQRModal(true)
                                         } else {
                                           toast.error('No se pudo obtener la información de la cuota')
@@ -472,8 +539,8 @@ const Pagos = () => {
                                       }}
                                       icon={<QrCode className="h-4 w-4" />}
                                     >
-                                      Pagar
-                                    </Button>
+                                      Pagar con QR
+                    </Button>
                                   )}
                                 </div>
                               </div>
@@ -524,23 +591,36 @@ const Pagos = () => {
                             {formatCurrency(cuotasPendientesPlan.reduce((sum, c) => sum + (parseFloat(c.saldo_pendiente || c.monto) || 0), 0))}
                           </p>
                         </div>
-                        <Button
+                      <Button
                           variant="primary"
-                          onClick={() => {
+                        onClick={() => {
                             if (cuotasPendientesPlan.length > 0 && cuotasPendientesPlan[0].id) {
-                              setSelectedCuotaId(cuotasPendientesPlan[0].id)
+                              const primeraCuota = cuotasPendientesPlan[0]
+                              setSelectedCuotaId(primeraCuota.id)
+                              setSelectedCuotaInfo({
+                                saldo_pendiente: primeraCuota.saldo_pendiente || primeraCuota.monto,
+                                monto: primeraCuota.monto,
+                                concepto: `Cuota - ${(() => {
+                                  if (!plan.programa) return 'Programa'
+                                  if (typeof plan.programa === 'string') return plan.programa
+                                  if (typeof plan.programa === 'object' && plan.programa.nombre) return plan.programa.nombre
+                                  return 'Programa'
+                                })()}`,
+                                fecha_ini: primeraCuota.fecha_ini,
+                                fecha_inscripcion: plan.fecha_inscripcion || primeraCuota.fecha_inscripcion
+                              })
                               setShowQRModal(true)
                             }
                           }}
                           icon={<QrCode className="h-4 w-4" />}
                         >
                           Pagar Cuota Pendiente
-                        </Button>
+                      </Button>
                       </div>
-                    </div>
-                  )}
-                </div>
-              </Card>
+                  </div>
+                )}
+              </div>
+            </Card>
             )
           })}
         </div>
@@ -552,8 +632,37 @@ const Pagos = () => {
         onClose={() => {
           setShowQRModal(false)
           setSelectedCuotaId(null)
+          setSelectedCuotaInfo(null)
         }}
         cuotaId={selectedCuotaId}
+        cuotaInfo={selectedCuotaInfo}
+        onPaymentSuccess={() => {
+          // Recargar datos después del pago exitoso
+          const fetchPagos = async () => {
+            try {
+              setLoading(true)
+              const response = await get('/estudiante/pagos')
+              if (response.data.success) {
+                const data = response.data.data || {}
+                setPlanes(Array.isArray(data.planes) ? data.planes : [])
+                setCuotas(Array.isArray(data.cuotas) ? data.cuotas : [])
+                if (data.total_cuotas !== undefined) {
+                  setResumen({
+                    total_cuotas: data.total_cuotas || 0,
+                    cuotas_pagadas: data.cuotas_pagadas || 0,
+                    cuotas_pendientes: data.cuotas_pendientes || 0,
+                    cuotas_vencidas: data.cuotas_vencidas || 0
+                  })
+                }
+              }
+            } catch (error) {
+              console.error('Error recargando pagos:', error)
+            } finally {
+              setLoading(false)
+            }
+          }
+          fetchPagos()
+        }}
       />
     </div>
   )

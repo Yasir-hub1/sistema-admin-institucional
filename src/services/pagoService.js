@@ -450,6 +450,98 @@ export const estudiantePagoService = {
         message: error.response?.data?.message || MESSAGES.ERROR_FETCH
       }
     }
+  },
+
+  async generarPagoQR(cuotaId, monto) {
+    try {
+      const response = await post('/estudiante/pagos', {
+        cuota_id: cuotaId,
+        monto: monto,
+        metodo: 'QR'
+      })
+      
+      if (response.data.success) {
+        return {
+          success: true,
+          data: response.data.data,
+          message: response.data.message
+        }
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Error al generar QR',
+          error: response.data.error || response.data.message,
+          errors: response.data.errors
+        }
+      }
+    } catch (error) {
+      console.error('Error generando QR:', error)
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Error al generar QR'
+      return {
+        success: false,
+        message: errorMessage,
+        error: errorMessage,
+        errors: error.response?.data?.errors
+      }
+    }
+  },
+
+  async consultarEstadoQR(pagoId) {
+    try {
+      const response = await get(`/estudiante/pagos/${pagoId}/consultar-estado-qr`)
+      
+      if (response.data.success) {
+        return {
+          success: true,
+          data: response.data.data,
+          message: response.data.message
+        }
+      } else {
+        return {
+          success: false,
+          message: response.data.message || MESSAGES.ERROR_FETCH
+        }
+      }
+    } catch (error) {
+      console.error('Error consultando estado QR:', error)
+      return {
+        success: false,
+        message: error.response?.data?.message || MESSAGES.ERROR_FETCH
+      }
+    }
+  },
+
+  async subirComprobanteQR(pagoId, comprobante) {
+    try {
+      const formData = new FormData()
+      formData.append('comprobante', comprobante)
+
+      const response = await upload(`/estudiante/pagos/${pagoId}/subir-comprobante-qr`, formData)
+      
+      if (response.data.success) {
+        return {
+          success: true,
+          data: response.data.data,
+          message: response.data.message || 'Comprobante subido exitosamente'
+        }
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Error al subir comprobante',
+          errors: response.data.errors
+        }
+      }
+    } catch (error) {
+      console.error('Error subiendo comprobante:', error)
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Error al subir comprobante',
+        errors: error.response?.data?.errors
+      }
+    }
   }
 }
 
