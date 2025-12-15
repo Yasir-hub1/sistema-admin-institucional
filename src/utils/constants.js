@@ -1,7 +1,7 @@
 // Constantes del sistema académico ICAP
 
 export const APP_CONFIG = {
-  apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  apiUrl: import.meta.env.VITE_API_URL || 'http://192.168.100.83:8000/api',
   appName: import.meta.env.VITE_APP_NAME || 'Sistema Académico ICAP',
   appVersion: import.meta.env.VITE_APP_VERSION || '1.0.0',
   debugMode: import.meta.env.VITE_DEBUG_MODE === 'true' || false,

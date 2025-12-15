@@ -9,7 +9,12 @@ import {
   CheckCircle,
   GraduationCap,
   Users,
-  XCircle
+  XCircle,
+  Copy,
+  Check,
+  Mail,
+  Lock,
+  AlertCircle
 } from 'lucide-react'
 import Button from '../../components/common/Button'
 import Input from '../../components/common/Input'
@@ -32,6 +37,9 @@ const Docentes = () => {
   const [perPage, setPerPage] = useState(10)
   const [showModal, setShowModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false)
+  const [temporaryCredentials, setTemporaryCredentials] = useState(null)
+  const [copiedField, setCopiedField] = useState(null)
   const [editingDocente, setEditingDocente] = useState(null)
   const [viewingDocente, setViewingDocente] = useState(null)
   const [siguienteRegistro, setSiguienteRegistro] = useState('')
@@ -208,6 +216,12 @@ const Docentes = () => {
       }
     }
 
+    // Validar email si es creación
+    if (!editingDocente && (!data.email || data.email.trim() === '')) {
+      toast.error('El email es obligatorio para crear las credenciales de acceso del docente')
+      return
+    }
+
     try {
       setLoading(true)
       const docenteData = {
@@ -221,6 +235,11 @@ const Docentes = () => {
         cargo: data.cargo ? data.cargo.trim() : null,
         area_de_especializacion: data.area_de_especializacion ? data.area_de_especializacion.trim() : null,
         modalidad_de_contratacion: data.modalidad_de_contratacion ? data.modalidad_de_contratacion.trim() : null
+      }
+
+      // Agregar email solo si es creación
+      if (!editingDocente && data.email) {
+        docenteData.email = data.email.trim().toLowerCase()
       }
 
       let response
@@ -243,7 +262,24 @@ const Docentes = () => {
       }
 
       if (response.success) {
-        toast.success(response.message || (editingDocente ? 'Docente actualizado exitosamente' : 'Docente creado exitosamente'))
+        // Si es creación y viene con credenciales temporales, mostrarlas
+        if (!editingDocente && response.data?.usuario?.password_temporal) {
+          const passwordTemporal = response.data.usuario.password_temporal
+          const email = response.data.usuario.email
+          
+          // Guardar credenciales y mostrar modal
+          setTemporaryCredentials({
+            email,
+            password: passwordTemporal,
+            docenteNombre: `${data.nombre} ${data.apellido}`
+          })
+          setShowCredentialsModal(true)
+          
+          toast.success('Docente creado exitosamente. Revisa las credenciales temporales.', { duration: 5000 })
+        } else {
+          toast.success(response.message || (editingDocente ? 'Docente actualizado exitosamente' : 'Docente creado exitosamente'))
+        }
+        
         setShowModal(false)
         reset()
         setEditingDocente(null)
@@ -301,7 +337,8 @@ const Docentes = () => {
       direccion: docente.direccion || '',
       cargo: docente.cargo || '',
       area_de_especializacion: docente.area_de_especializacion || '',
-      modalidad_de_contratacion: docente.modalidad_de_contratacion || ''
+      modalidad_de_contratacion: docente.modalidad_de_contratacion || '',
+      email: '' // No se muestra el email en edición por seguridad
     })
     setShowModal(true)
   }
@@ -364,10 +401,40 @@ const Docentes = () => {
       direccion: '',
       cargo: '',
       area_de_especializacion: '',
-      modalidad_de_contratacion: ''
+      modalidad_de_contratacion: '',
+      email: ''
     })
     await fetchSiguienteRegistro()
     setShowModal(true)
+  }
+
+  const copyToClipboard = async (text, field) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedField(field)
+      toast.success(`${field === 'email' ? 'Email' : 'Contraseña'} copiado al portapapeles`, { duration: 2000 })
+      
+      // Resetear el estado después de 2 segundos
+      setTimeout(() => {
+        setCopiedField(null)
+      }, 2000)
+    } catch (error) {
+      console.error('Error al copiar:', error)
+      toast.error('Error al copiar al portapapeles')
+    }
+  }
+
+  const copyAllCredentials = async () => {
+    if (!temporaryCredentials) return
+    
+    const credentialsText = `Email: ${temporaryCredentials.email}\nContraseña: ${temporaryCredentials.password}`
+    try {
+      await navigator.clipboard.writeText(credentialsText)
+      toast.success('Credenciales completas copiadas al portapapeles', { duration: 2000 })
+    } catch (error) {
+      console.error('Error al copiar:', error)
+      toast.error('Error al copiar al portapapeles')
+    }
   }
 
   const columns = [
@@ -639,6 +706,29 @@ const Docentes = () => {
               </div>
             )}
           </div>
+
+          {!editingDocente && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Email * <span className="text-xs text-gray-500">(Para credenciales de acceso)</span>
+              </label>
+              <Input
+                type="email"
+                {...register('email', { 
+                  required: 'El email es requerido para crear las credenciales de acceso',
+                  pattern: {
+                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                    message: 'El email debe tener un formato válido'
+                  }
+                })}
+                placeholder="Ej: docente@icap.edu.bo"
+                error={errors.email?.message}
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Se generará una contraseña temporal que el docente deberá cambiar en su primer login
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -994,6 +1084,123 @@ const Docentes = () => {
                 </div>
               </div>
             )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal de Credenciales Temporales */}
+      <Modal
+        isOpen={showCredentialsModal}
+        onClose={() => {
+          setShowCredentialsModal(false)
+          setTemporaryCredentials(null)
+          setCopiedField(null)
+        }}
+        title="Credenciales Temporales del Docente"
+        size="md"
+      >
+        {temporaryCredentials && (
+          <div className="space-y-6">
+            {/* Alerta importante */}
+            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-300 dark:border-yellow-800 rounded-lg">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-200 mb-1">
+                    ⚠️ Importante
+                  </p>
+                  <p className="text-xs text-yellow-800 dark:text-yellow-300">
+                    Guarda estas credenciales de forma segura. El docente <strong>{temporaryCredentials.docenteNombre}</strong> deberá cambiar su contraseña en el primer login.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Email */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Email
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <Mail className="h-5 w-5 text-primary-600 dark:text-primary-400 flex-shrink-0" />
+                  <code className="flex-1 text-sm font-mono text-gray-900 dark:text-gray-100 break-all">
+                    {temporaryCredentials.email}
+                  </code>
+                </div>
+                <Button
+                  type="button"
+                  variant={copiedField === 'email' ? 'success' : 'outline'}
+                  size="md"
+                  icon={copiedField === 'email' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  onClick={() => copyToClipboard(temporaryCredentials.email, 'email')}
+                  className="flex-shrink-0"
+                >
+                  {copiedField === 'email' ? 'Copiado' : 'Copiar'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Contraseña */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Contraseña Temporal
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <Lock className="h-5 w-5 text-primary-600 dark:text-primary-400 flex-shrink-0" />
+                  <code className="flex-1 text-sm font-mono text-gray-900 dark:text-gray-100 break-all">
+                    {temporaryCredentials.password}
+                  </code>
+                </div>
+                <Button
+                  type="button"
+                  variant={copiedField === 'password' ? 'success' : 'outline'}
+                  size="md"
+                  icon={copiedField === 'password' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  onClick={() => copyToClipboard(temporaryCredentials.password, 'password')}
+                  className="flex-shrink-0"
+                >
+                  {copiedField === 'password' ? 'Copiado' : 'Copiar'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Botón para copiar todo */}
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+              <Button
+                type="button"
+                variant="primary"
+                fullWidth
+                icon={<Copy className="h-5 w-5" />}
+                onClick={copyAllCredentials}
+              >
+                Copiar Credenciales Completas
+              </Button>
+            </div>
+
+            {/* Información adicional */}
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <p className="text-xs text-blue-800 dark:text-blue-300">
+                💡 <strong>Tip:</strong> Puedes copiar cada credencial individualmente o copiar ambas a la vez. 
+                Comparte estas credenciales de forma segura con el docente.
+              </p>
+            </div>
+
+            {/* Botón de cierre */}
+            <div className="flex justify-end pt-2">
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => {
+                  setShowCredentialsModal(false)
+                  setTemporaryCredentials(null)
+                  setCopiedField(null)
+                }}
+              >
+                Entendido
+              </Button>
+            </div>
           </div>
         )}
       </Modal>

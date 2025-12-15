@@ -8,7 +8,7 @@ import { MESSAGES } from '../utils/constants'
  */
 export const authService = {
   /**
-   * Iniciar sesión para administradores/docentes
+   * Iniciar sesión para administradores
    * @param {object} credentials - Credenciales de login
    * @param {string} credentials.email - Email del usuario (opcional)
    * @param {string} credentials.ci - CI del usuario (opcional, alternativo a email)
@@ -26,7 +26,46 @@ export const authService = {
             token: response.data.token,
             user: response.data.user,
             token_type: response.data.token_type,
-            expires_in: response.data.expires_in
+            expires_in: response.data.expires_in,
+            debe_cambiar_password: response.data.debe_cambiar_password || response.data.user?.debe_cambiar_password || false
+          },
+          message: MESSAGES.SUCCESS.LOGIN
+        }
+      } else {
+        return {
+          success: false,
+          message: response.data.message || MESSAGES.ERROR.LOGIN
+        }
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || MESSAGES.ERROR.LOGIN
+      }
+    }
+  },
+
+  /**
+   * Iniciar sesión para docentes
+   * @param {object} credentials - Credenciales de login
+   * @param {string} credentials.email - Email del docente (opcional)
+   * @param {string} credentials.ci - CI del docente (opcional, alternativo a email)
+   * @param {string} credentials.password - Contraseña
+   * @returns {Promise<object>} Respuesta con token y usuario
+   */
+  async loginDocente(credentials) {
+    try {
+      const response = await post('/auth/docente/login', credentials)
+      
+      if (response.data.success) {
+        return {
+          success: true,
+          data: {
+            token: response.data.token,
+            user: response.data.user,
+            token_type: response.data.token_type,
+            expires_in: response.data.expires_in,
+            debe_cambiar_password: response.data.debe_cambiar_password || response.data.user?.debe_cambiar_password || false
           },
           message: MESSAGES.SUCCESS.LOGIN
         }
@@ -100,19 +139,13 @@ export const authService = {
         }
       }
       return this.loginEstudiante(credentials)
-    } else if (credentials.userType === 'admin' || credentials.email) {
+    } else if (credentials.userType === 'admin') {
       return this.loginAdmin(credentials)
-    } else if (credentials.ci) {
-      // Intentar primero como admin/docente, luego como estudiante (aunque estudiantes ya no usan CI)
-      const adminResult = await this.loginAdmin(credentials)
-      if (adminResult.success) {
-        return adminResult
-      }
-      // Si falla como admin, no intentar como estudiante porque estudiantes usan email
-      return {
-        success: false,
-        message: 'Debe proporcionar email para estudiantes o credenciales válidas para admin/docente'
-      }
+    } else if (credentials.userType === 'docente') {
+      return this.loginDocente(credentials)
+    } else if (credentials.email || credentials.ci) {
+      // Si no se especifica userType pero hay email/ci, intentar como admin
+      return this.loginAdmin(credentials)
     } else {
       return {
         success: false,

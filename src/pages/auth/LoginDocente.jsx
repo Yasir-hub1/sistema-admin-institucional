@@ -18,7 +18,6 @@ import toast from 'react-hot-toast'
 
 const LoginDocente = () => {
   const [showPassword, setShowPassword] = useState(false)
-  const { login } = useAuth()
   const navigate = useNavigate()
   
   const {
@@ -30,41 +29,117 @@ const LoginDocente = () => {
 
   const onSubmit = async (data) => {
     try {
-      // Usar loginAdmin para docentes (comparten el mismo endpoint)
-      const result = await authService.loginAdmin({
-        ...data,
-        userType: 'admin' // Indica que es admin/docente
+      console.log('🔐 [DOCENTE] Iniciando login...', { input: data.email })
+      
+      // Detectar si es email o CI
+      const inputValue = data.email?.trim()
+      if (!inputValue || !data.password) {
+        throw new Error('Email/CI y contraseña son requeridos')
+      }
+      
+      const isEmail = inputValue.includes('@')
+      
+      // Preparar credenciales según el tipo detectado
+      const credentials = {
+        password: data.password
+      }
+      
+      if (isEmail) {
+        credentials.email = inputValue
+        console.log('   → Tipo: EMAIL -', inputValue)
+      } else {
+        credentials.ci = inputValue
+        console.log('   → Tipo: CI -', inputValue)
+      }
+      
+      console.log('   → Enviando petición a /auth/docente/login...')
+      
+      // Llamar al endpoint de login de docentes
+      const result = await authService.loginDocente(credentials)
+      
+      console.log('   → Respuesta:', {
+        success: result.success,
+        hasToken: !!result.data?.token,
+        hasUser: !!result.data?.user,
+        debeCambiar: result.data?.debe_cambiar_password
       })
       
-      if (result.success) {
-        // Guardar token
-        localStorage.setItem('token', result.data.token)
-        
-        // Actualizar contexto de autenticación
-        // El método login del contexto espera las credenciales y maneja el token internamente
-        const loginResult = await login({
-          email: data.email || data.ci,
-          password: data.password,
-          userType: 'admin'
-        })
-        
-        if (loginResult.success) {
-          toast.success('Bienvenido al portal docente')
-          navigate('/docente/dashboard')
-        }
-      } else {
-        setError('root', {
-          type: 'manual',
-          message: result.message || 'Error al iniciar sesión'
-        })
-        toast.error(result.message || 'Error al iniciar sesión')
+      // Verificar que la respuesta sea exitosa
+      if (!result.success) {
+        console.error('   ❌ Login fallido:', result.message)
+        throw new Error(result.message || 'Error al iniciar sesión')
       }
+      
+      // Verificar que tengamos los datos necesarios
+      if (!result.data?.token || !result.data?.user) {
+        console.error('   ❌ Respuesta incompleta:', result.data)
+        throw new Error('Respuesta del servidor incompleta')
+      }
+      
+      console.log('   ✅ Login exitoso')
+      
+      // Verificar si debe cambiar contraseña
+      const debeCambiar = result.data.debe_cambiar_password || result.data.user.debe_cambiar_password
+      console.log('   → Debe cambiar contraseña:', debeCambiar)
+      
+      // Guardar token SIEMPRE (necesario para la API)
+      localStorage.setItem('token', result.data.token)
+      console.log('   → Token guardado en localStorage')
+      
+      if (debeCambiar) {
+        // Caso 1: Requiere cambio de contraseña
+        console.log('   → Redirigiendo a cambiar contraseña...')
+        
+        // toast.warning NO existe en react-hot-toast
+        // Usar toast con icon personalizado para simular warning
+        toast('Debes cambiar tu contraseña antes de continuar', { 
+          duration: 5000,
+          icon: '⚠️',
+          style: {
+            background: '#FEF3C7',
+            color: '#92400E',
+            border: '1px solid #FCD34D'
+          }
+        })
+        
+        // Pequeño delay para asegurar que el token se guardó
+        setTimeout(() => {
+          navigate('/docente/cambiar-password', { 
+            state: { 
+              requiereCambio: true,
+              mensaje: 'Por seguridad, debes cambiar tu contraseña temporal antes de continuar.',
+              fromLogin: true
+            },
+            replace: true  // Reemplazar en history para evitar volver atrás
+          })
+        }, 100)
+      } else {
+        // Caso 2: Login normal, ir al dashboard
+        console.log('   → Redirigiendo al dashboard...')
+        toast.success(`Bienvenido, ${result.data.user.nombre} ${result.data.user.apellido}`.trim())
+        
+        // Pequeño delay para asegurar que el token se guardó
+        setTimeout(() => {
+          navigate('/docente/dashboard', { replace: true })
+        }, 100)
+      }
+      
     } catch (error) {
+      console.error('❌ [DOCENTE] Error en login:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      
+      // Mostrar error específico
+      const errorMessage = error.response?.data?.message || error.message || 'Error de conexión. Verifica tu conexión e intenta nuevamente.'
+      
       setError('root', {
         type: 'manual',
-        message: 'Error de conexión. Intenta nuevamente.'
+        message: errorMessage
       })
-      toast.error('Error de conexión')
+      
+      toast.error(errorMessage)
     }
   }
 

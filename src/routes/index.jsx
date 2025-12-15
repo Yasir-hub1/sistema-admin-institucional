@@ -60,6 +60,7 @@ import GestionPagos from '../pages/admin/GestionPagos'
 import DocenteDashboard from '../pages/docente/Dashboard'
 import MisGrupos from '../pages/docente/MisGrupos'
 import EvaluacionGrupo from '../pages/docente/EvaluacionGrupo'
+import CambiarPassword from '../pages/docente/CambiarPassword'
 
 // Páginas Estudiante
 import EstudianteDashboard from '../pages/estudiante/Dashboard'
@@ -98,6 +99,12 @@ const AppRoutes = () => {
             ? <Navigate to="/docente/dashboard" replace /> 
             : <LoginDocente />
         } 
+      />
+      
+      {/* Cambio de contraseña obligatorio - DOCENTE (acceso rápido, sin ProtectedRoute pesado) */}
+      <Route 
+        path="/docente/cambiar-password" 
+        element={<CambiarPassword />} 
       />
       
       <Route 
@@ -558,13 +565,13 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute requiredRoles={['DOCENTE']}>
             <Layout />
-          </ProtectedRoute>
+</ProtectedRoute>
         }
       >
         <Route index element={<Navigate to="/docente/dashboard" replace />} />
         <Route path="dashboard" element={<DocenteDashboard />} />
         
-        {/* Gestión de grupos y evaluación - DOCENTE */}
+        {/* Mis Grupos - Ver grupos asignados con horarios y estudiantes - DOCENTE */}
         <Route 
           path="grupos" 
           element={
@@ -573,51 +580,13 @@ const AppRoutes = () => {
             </RoleBasedRoute>
           } 
         />
+        
+        {/* Detalle de Grupo - Ver estudiantes, subir notas y actualizar estados - DOCENTE */}
         <Route 
           path="grupos/:grupoId" 
           element={
             <RoleBasedRoute allowedRoles={['DOCENTE']}>
               <EvaluacionGrupo />
-            </RoleBasedRoute>
-          } 
-        />
-        
-        {/* Gestión de horarios - DOCENTE */}
-        <Route 
-          path="horarios" 
-          element={
-            <RoleBasedRoute allowedRoles={['DOCENTE']}>
-              <Horarios />
-            </RoleBasedRoute>
-          } 
-        />
-        
-        {/* Control de asistencias - DOCENTE */}
-        <Route 
-          path="asistencias" 
-          element={
-            <RoleBasedRoute allowedRoles={['DOCENTE']}>
-              <Asistencias />
-            </RoleBasedRoute>
-          } 
-        />
-        
-        {/* Registro de asistencia para docentes - DOCENTE */}
-        <Route 
-          path="asistencias/registrar" 
-          element={
-            <RoleBasedRoute allowedRoles={['DOCENTE']}>
-              <div>Registro de Asistencia - En desarrollo</div>
-            </RoleBasedRoute>
-          } 
-        />
-        
-        {/* Escaneo de QR para docentes - DOCENTE */}
-        <Route 
-          path="asistencias/escanear-qr" 
-          element={
-            <RoleBasedRoute allowedRoles={['DOCENTE']}>
-              <div>Escáner QR - En desarrollo</div>
             </RoleBasedRoute>
           } 
         />

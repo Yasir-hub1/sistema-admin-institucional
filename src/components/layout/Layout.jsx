@@ -99,9 +99,7 @@ const Layout = () => {
   // Navegación para DOCENTE
   const docenteNavigation = [
     { name: 'Dashboard', href: '/docente/dashboard', icon: Home, roles: ['DOCENTE'] },
-    { name: 'Horarios', href: '/docente/horarios', icon: Clock, roles: ['DOCENTE'] },
-    { name: 'Asistencias', href: '/docente/asistencias', icon: ClipboardList, roles: ['DOCENTE'] },
-    { name: 'Grupos', href: '/docente/grupos', icon: UserCheck, roles: ['DOCENTE'] },
+    { name: 'Mis Grupos', href: '/docente/grupos', icon: Users, roles: ['DOCENTE'] },
     { name: 'Notificaciones', href: '/docente/notificaciones', icon: Bell, roles: ['DOCENTE'] },
   ]
 
@@ -567,7 +565,8 @@ const Layout = () => {
 
           {/* Usuario info desktop */}
           <div className="flex-shrink-0 border-t border-gray-200/50 dark:border-gray-700/50 p-6">
-            <Link to="/perfil" className="flex items-center group mb-4">
+            {/* <Link to="/perfil" className="flex items-center group mb-4"> */}
+            <div className="flex items-center group mb-4">
               <div className="flex-shrink-0">
                 <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-glow">
                   <span className="text-white font-bold text-lg">
@@ -583,7 +582,8 @@ const Layout = () => {
                   {user?.rol || 'Usuario'}
                 </p>
               </div>
-            </Link>
+              </div>
+            {/* </Link> */}
             <button
               onClick={handleLogout}
               className="w-full flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-error-500 to-error-600 text-white rounded-xl text-sm font-medium hover:shadow-glow transition-all duration-200"
@@ -750,12 +750,12 @@ const Layout = () => {
                   {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                 </div>
               </button>
-              <Link
+              {/* <Link
                 to="/perfil"
                 className="p-2 rounded-xl text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 group"
               >
                 <Settings className="h-5 w-5 group-hover:scale-110 group-hover:rotate-90 transition-all duration-200" />
-              </Link>
+              </Link> */}
             </div>
           </div>
         </div>
