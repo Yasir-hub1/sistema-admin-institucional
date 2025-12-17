@@ -31,6 +31,11 @@ const Convenios = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [perPage, setPerPage] = useState(10)
+  const [totalRegistros, setTotalRegistros] = useState(0)
+  const [from, setFrom] = useState(0)
+  const [to, setTo] = useState(0)
+  const [sortBy, setSortBy] = useState('fecha_ini')
+  const [sortDirection, setSortDirection] = useState('desc')
   const [showModal, setShowModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
   const [editingConvenio, setEditingConvenio] = useState(null)
@@ -59,7 +64,7 @@ const Convenios = () => {
   useEffect(() => {
     fetchDatosFormulario()
     fetchConvenios()
-  }, [currentPage, perPage, searchTerm, selectedTipo])
+  }, [currentPage, perPage, searchTerm, selectedTipo, sortBy, sortDirection])
 
   const fetchDatosFormulario = async () => {
     try {
@@ -87,23 +92,23 @@ const Convenios = () => {
         page: currentPage,
         per_page: perPage,
         search: searchTerm,
-        tipo_convenio_id: selectedTipo || undefined
+        tipo_convenio_id: selectedTipo || undefined,
+        sort_by: sortBy,
+        sort_direction: sortDirection
       })
       
       if (response.success && response.data) {
         const conveniosData = response.data.data || []
         
-        // Debug: verificar estructura de los datos recibidos
-        if (conveniosData.length > 0) {
-          console.log('📋 fetchConvenios - Primer convenio recibido:', conveniosData[0])
-          console.log('📋 fetchConvenios - convenio_id:', conveniosData[0].convenio_id, 'id:', conveniosData[0].id)
-        }
-        
         setConvenios(conveniosData)
         setTotalPages(response.data.last_page || 1)
+        setTotalRegistros(response.data.total || 0)
+        setFrom(response.data.from || 0)
+        setTo(response.data.to || 0)
+        
         setStats({
           total: response.data.total || 0,
-          activos: response.data.data?.filter(c => {
+          activos: conveniosData.filter(c => {
             const fechaFin = new Date(c.fecha_fin)
             return fechaFin >= new Date()
           }).length || 0
@@ -113,12 +118,18 @@ const Convenios = () => {
         toast.error(errorMessage)
         setConvenios([])
         setTotalPages(1)
+        setTotalRegistros(0)
+        setFrom(0)
+        setTo(0)
       }
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Error de conexión. Por favor, verifica tu conexión a internet'
       toast.error(errorMessage)
       setConvenios([])
       setTotalPages(1)
+      setTotalRegistros(0)
+      setFrom(0)
+      setTo(0)
     } finally {
       setLoading(false)
     }
@@ -459,6 +470,12 @@ const Convenios = () => {
     }
   }
 
+  const handleSort = (column, direction) => {
+    setSortBy(column)
+    setSortDirection(direction)
+    setCurrentPage(1)
+  }
+
   const handleNew = async () => {
     setEditingConvenio(null)
     reset({
@@ -677,11 +694,19 @@ const Convenios = () => {
           columns={columns}
           data={convenios}
           loading={loading}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          perPage={perPage}
-          onPerPageChange={setPerPage}
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          pagination={{
+            currentPage,
+            totalPages,
+            perPage,
+            total: totalRegistros,
+            from,
+            to,
+            onPageChange: setCurrentPage,
+            onPerPageChange: setPerPage
+          }}
         />
       </Card>
 

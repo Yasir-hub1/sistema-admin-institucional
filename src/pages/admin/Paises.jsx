@@ -26,6 +26,11 @@ const Paises = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [perPage, setPerPage] = useState(10)
+  const [totalRegistros, setTotalRegistros] = useState(0)
+  const [from, setFrom] = useState(0)
+  const [to, setTo] = useState(0)
+  const [sortBy, setSortBy] = useState('nombre_pais')
+  const [sortDirection, setSortDirection] = useState('asc')
   const [showModal, setShowModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
   const [editingPais, setEditingPais] = useState(null)
@@ -42,7 +47,7 @@ const Paises = () => {
 
   useEffect(() => {
     fetchPaises()
-  }, [currentPage, perPage, searchTerm])
+  }, [currentPage, perPage, searchTerm, sortBy, sortDirection])
 
   const fetchPaises = async () => {
     try {
@@ -50,26 +55,43 @@ const Paises = () => {
       const response = await paisService.getPaises({
         page: currentPage,
         per_page: perPage,
-        search: searchTerm
+        search: searchTerm,
+        sort_by: sortBy,
+        sort_direction: sortDirection
       })
       
       if (response.success && response.data) {
         setPaises(response.data.data || [])
         setTotalPages(response.data.last_page || 1)
+        setTotalRegistros(response.data.total || 0)
+        setFrom(response.data.from || 0)
+        setTo(response.data.to || 0)
       } else {
         const errorMessage = response.message || 'Error al cargar países'
         toast.error(errorMessage)
         setPaises([])
         setTotalPages(1)
+        setTotalRegistros(0)
+        setFrom(0)
+        setTo(0)
       }
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Error de conexión. Por favor, verifica tu conexión a internet'
       toast.error(errorMessage)
       setPaises([])
       setTotalPages(1)
+      setTotalRegistros(0)
+      setFrom(0)
+      setTo(0)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSort = (column, direction) => {
+    setSortBy(column)
+    setSortDirection(direction)
+    setCurrentPage(1) // Resetear a primera página al ordenar
   }
 
   const handleCreate = () => {
@@ -302,10 +324,43 @@ const Paises = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">Total Países</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{paises.length}</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{totalRegistros}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {searchTerm ? `${totalRegistros} resultados encontrados` : 'Registros en el sistema'}
+              </p>
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-glow">
               <Globe className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="gradient" shadow="glow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">Página Actual</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{currentPage} / {totalPages}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Mostrando {from} - {to}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl flex items-center justify-center shadow-glow">
+              <MapPin className="h-6 w-6 text-white" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="gradient" shadow="glow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">Por Página</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{perPage}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Registros mostrados
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-glow">
+              <CheckCircle className="h-6 w-6 text-white" />
             </div>
           </div>
         </Card>
@@ -330,10 +385,16 @@ const Paises = () => {
           columns={columns}
           data={paises}
           loading={loading}
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
           pagination={{
             currentPage,
             totalPages,
             perPage,
+            total: totalRegistros,
+            from,
+            to,
             onPageChange: setCurrentPage,
             onPerPageChange: setPerPage
           }}

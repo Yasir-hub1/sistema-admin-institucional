@@ -25,6 +25,11 @@ const Versiones = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [perPage, setPerPage] = useState(10)
+  const [totalRegistros, setTotalRegistros] = useState(0)
+  const [from, setFrom] = useState(0)
+  const [to, setTo] = useState(0)
+  const [sortBy, setSortBy] = useState('año')
+  const [sortDirection, setSortDirection] = useState('desc')
   const [showModal, setShowModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
   const [editingVersion, setEditingVersion] = useState(null)
@@ -38,7 +43,7 @@ const Versiones = () => {
 
   useEffect(() => {
     fetchVersiones()
-  }, [currentPage, perPage, searchTerm, añoFilter])
+  }, [currentPage, perPage, searchTerm, añoFilter, sortBy, sortDirection])
 
   const fetchVersiones = async () => {
     try {
@@ -47,21 +52,37 @@ const Versiones = () => {
         page: currentPage,
         per_page: perPage,
         search: searchTerm,
-        año: añoFilter
+        año: añoFilter,
+        sort_by: sortBy,
+        sort_direction: sortDirection
       })
       
       if (response.success && response.data) {
-        setVersiones(response.data.data || [])
+        const versionesData = response.data.data || []
+        setVersiones(versionesData)
         setTotalPages(response.data.last_page || 1)
+        setTotalRegistros(response.data.total || 0)
+        setFrom(response.data.from || 0)
+        setTo(response.data.to || 0)
         setStats({
           total: response.data.total || 0,
-          conProgramas: response.data.data?.filter(v => v.programas_count > 0).length || 0
+          conProgramas: versionesData.filter(v => v.programas_count > 0).length || 0
         })
       } else {
         toast.error(response.message || 'Error al cargar versiones')
+        setVersiones([])
+        setTotalPages(1)
+        setTotalRegistros(0)
+        setFrom(0)
+        setTo(0)
       }
     } catch (error) {
       toast.error('Error al cargar versiones')
+      setVersiones([])
+      setTotalPages(1)
+      setTotalRegistros(0)
+      setFrom(0)
+      setTo(0)
     } finally {
       setLoading(false)
     }
@@ -231,6 +252,12 @@ const Versiones = () => {
     setShowModal(true)
   }
 
+  const handleSort = (column, direction) => {
+    setSortBy(column)
+    setSortDirection(direction)
+    setCurrentPage(1)
+  }
+
   const columns = [
     { 
       key: 'nombre', 
@@ -365,11 +392,19 @@ const Versiones = () => {
           columns={columns}
           data={versiones}
           loading={loading}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          perPage={perPage}
-          onPerPageChange={setPerPage}
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          pagination={{
+            currentPage,
+            totalPages,
+            perPage,
+            total: totalRegistros,
+            from,
+            to,
+            onPageChange: setCurrentPage,
+            onPerPageChange: setPerPage
+          }}
         />
       </Card>
 

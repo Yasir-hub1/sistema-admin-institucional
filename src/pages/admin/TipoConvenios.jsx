@@ -25,6 +25,11 @@ const TipoConvenios = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [perPage, setPerPage] = useState(10)
+  const [totalRegistros, setTotalRegistros] = useState(0)
+  const [from, setFrom] = useState(0)
+  const [to, setTo] = useState(0)
+  const [sortBy, setSortBy] = useState('nombre_tipo')
+  const [sortDirection, setSortDirection] = useState('asc')
   const [showModal, setShowModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
   const [editingTipo, setEditingTipo] = useState(null)
@@ -44,7 +49,7 @@ const TipoConvenios = () => {
 
   useEffect(() => {
     fetchTiposConvenio()
-  }, [currentPage, perPage, searchTerm])
+  }, [currentPage, perPage, searchTerm, sortBy, sortDirection])
 
   const fetchTiposConvenio = async () => {
     try {
@@ -52,30 +57,47 @@ const TipoConvenios = () => {
       const response = await tipoConvenioService.getTiposConvenio({
         page: currentPage,
         per_page: perPage,
-        search: searchTerm
+        search: searchTerm,
+        sort_by: sortBy,
+        sort_direction: sortDirection
       })
       
       if (response.success && response.data) {
         setTiposConvenio(response.data.data || [])
         setTotalPages(response.data.last_page || 1)
+        setTotalRegistros(response.data.total || 0)
+        setFrom(response.data.from || 0)
+        setTo(response.data.to || 0)
         setStats({
           total: response.data.total || 0,
-          conConvenios: response.data.data?.filter(t => t.convenios_count > 0).length || 0
+          conConvenios: response.meta?.tipos_con_convenios || response.data.data?.filter(t => t.convenios_count > 0).length || 0
         })
       } else {
         const errorMessage = response.message || 'Error al cargar tipos de convenio'
         toast.error(errorMessage)
         setTiposConvenio([])
         setTotalPages(1)
+        setTotalRegistros(0)
+        setFrom(0)
+        setTo(0)
       }
     } catch (error) {
       const errorMessage = error.response?.data?.message || error.message || 'Error de conexión. Por favor, verifica tu conexión a internet'
       toast.error(errorMessage)
       setTiposConvenio([])
       setTotalPages(1)
+      setTotalRegistros(0)
+      setFrom(0)
+      setTo(0)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSort = (column, direction) => {
+    setSortBy(column)
+    setSortDirection(direction)
+    setCurrentPage(1) // Resetear a primera página al ordenar
   }
 
   const onSubmit = async (data) => {
@@ -214,17 +236,23 @@ const TipoConvenios = () => {
     { 
       key: 'nombre_tipo', 
       label: 'Nombre',
+      sortable: true,
       render: (row) => row.nombre_tipo || '-'
     },
     { 
       key: 'descripcion', 
       label: 'Descripción',
+      sortable: true,
       render: (row) => row.descripcion || '-'
     },
     { 
       key: 'convenios_count', 
       label: 'Convenios',
-      render: (row) => row.convenios_count || 0
+      render: (row) => (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
+          {row.convenios_count || 0}
+        </span>
+      )
     },
     {
       key: 'actions',
@@ -274,12 +302,15 @@ const TipoConvenios = () => {
       </div>
 
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-primary-500 to-primary-600 text-white">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-primary-100 text-sm">Total de Tipos</p>
-              <p className="text-3xl font-bold mt-1">{stats.total}</p>
+              <p className="text-3xl font-bold mt-1">{totalRegistros}</p>
+              <p className="text-xs text-primary-200 mt-1">
+                {searchTerm ? `${totalRegistros} encontrados` : 'En el sistema'}
+              </p>
             </div>
             <FileText className="h-12 w-12 text-primary-200" />
           </div>
@@ -289,8 +320,35 @@ const TipoConvenios = () => {
             <div>
               <p className="text-accent-100 text-sm">Con Convenios</p>
               <p className="text-3xl font-bold mt-1">{stats.conConvenios}</p>
+              <p className="text-xs text-accent-200 mt-1">
+                Tipos activos
+              </p>
             </div>
             <CheckCircle className="h-12 w-12 text-accent-200" />
+          </div>
+        </Card>
+        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm">Página Actual</p>
+              <p className="text-3xl font-bold mt-1">{currentPage} / {totalPages}</p>
+              <p className="text-xs text-blue-200 mt-1">
+                Mostrando {from} - {to}
+              </p>
+            </div>
+            <FileText className="h-12 w-12 text-blue-200" />
+          </div>
+        </Card>
+        <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 text-sm">Por Página</p>
+              <p className="text-3xl font-bold mt-1">{perPage}</p>
+              <p className="text-xs text-green-200 mt-1">
+                Registros
+              </p>
+            </div>
+            <CheckCircle className="h-12 w-12 text-green-200" />
           </div>
         </Card>
       </div>
@@ -319,11 +377,19 @@ const TipoConvenios = () => {
           columns={columns}
           data={tiposConvenio}
           loading={loading}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          perPage={perPage}
-          onPerPageChange={setPerPage}
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          pagination={{
+            currentPage,
+            totalPages,
+            perPage,
+            total: totalRegistros,
+            from,
+            to,
+            onPageChange: setCurrentPage,
+            onPerPageChange: setPerPage
+          }}
         />
       </Card>
 

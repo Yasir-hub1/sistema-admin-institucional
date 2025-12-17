@@ -17,6 +17,11 @@ const GestionPagos = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [perPage, setPerPage] = useState(10)
+  const [totalRegistros, setTotalRegistros] = useState(0)
+  const [from, setFrom] = useState(0)
+  const [to, setTo] = useState(0)
+  const [sortBy, setSortBy] = useState('id')
+  const [sortDirection, setSortDirection] = useState('desc')
   const [showViewModal, setShowViewModal] = useState(false)
   const [showPagoModal, setShowPagoModal] = useState(false)
   const [showPenalidadModal, setShowPenalidadModal] = useState(false)
@@ -28,7 +33,7 @@ const GestionPagos = () => {
 
   useEffect(() => {
     fetchPlanes()
-  }, [currentPage, perPage, searchTerm, estadoFilter])
+  }, [currentPage, perPage, searchTerm, estadoFilter, sortBy, sortDirection])
 
   const fetchPlanes = async () => {
     try {
@@ -37,24 +42,41 @@ const GestionPagos = () => {
         page: currentPage,
         per_page: perPage,
         search: searchTerm,
-        estado: estadoFilter
+        estado: estadoFilter,
+        sort_by: sortBy,
+        sort_direction: sortDirection
       })
       
       if (response.success && response.data) {
         setPlanes(response.data.data || [])
         setTotalPages(response.data.last_page || 1)
+        setTotalRegistros(response.data.total || 0)
+        setFrom(response.data.from || 0)
+        setTo(response.data.to || 0)
       } else {
         toast.error(response.message || 'Error al cargar planes de pago')
         setPlanes([])
         setTotalPages(1)
+        setTotalRegistros(0)
+        setFrom(0)
+        setTo(0)
       }
     } catch (error) {
       toast.error('Error de conexión')
       setPlanes([])
       setTotalPages(1)
+      setTotalRegistros(0)
+      setFrom(0)
+      setTo(0)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSort = (column, direction) => {
+    setSortBy(column)
+    setSortDirection(direction)
+    setCurrentPage(1)
   }
 
   const handleView = async (plan) => {
@@ -280,10 +302,16 @@ const GestionPagos = () => {
           columns={columns}
           data={planes}
           loading={loading}
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
           pagination={{
             currentPage,
             totalPages,
             perPage,
+            total: totalRegistros,
+            from,
+            to,
             onPageChange: setCurrentPage,
             onPerPageChange: setPerPage
           }}

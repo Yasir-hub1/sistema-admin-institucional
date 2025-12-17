@@ -16,6 +16,11 @@ const PlanesPago = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [perPage, setPerPage] = useState(10)
+  const [totalRegistros, setTotalRegistros] = useState(0)
+  const [from, setFrom] = useState(0)
+  const [to, setTo] = useState(0)
+  const [sortBy, setSortBy] = useState('id')
+  const [sortDirection, setSortDirection] = useState('desc')
   const [showModal, setShowModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
   const [editingPlan, setEditingPlan] = useState(null)
@@ -43,7 +48,7 @@ const PlanesPago = () => {
   useEffect(() => {
     fetchPlanes()
     fetchDatosFormulario()
-  }, [currentPage, perPage, searchTerm])
+  }, [currentPage, perPage, searchTerm, sortBy, sortDirection])
 
   useEffect(() => {
     // Ajustar número de cuotas cuando cambia total_cuotas
@@ -65,24 +70,41 @@ const PlanesPago = () => {
       const response = await planPagoService.get({
         page: currentPage,
         per_page: perPage,
-        search: searchTerm
+        search: searchTerm,
+        sort_by: sortBy,
+        sort_direction: sortDirection
       })
       
       if (response.success && response.data) {
         setPlanes(response.data.data || [])
         setTotalPages(response.data.last_page || 1)
+        setTotalRegistros(response.data.total || 0)
+        setFrom(response.data.from || 0)
+        setTo(response.data.to || 0)
       } else {
         toast.error(response.message || 'Error al cargar planes de pago')
         setPlanes([])
         setTotalPages(1)
+        setTotalRegistros(0)
+        setFrom(0)
+        setTo(0)
       }
     } catch (error) {
       toast.error('Error de conexión')
       setPlanes([])
       setTotalPages(1)
+      setTotalRegistros(0)
+      setFrom(0)
+      setTo(0)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSort = (column, direction) => {
+    setSortBy(column)
+    setSortDirection(direction)
+    setCurrentPage(1)
   }
 
   const fetchDatosFormulario = async () => {
@@ -405,10 +427,16 @@ const PlanesPago = () => {
           columns={columns}
           data={planes}
           loading={loading}
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
           pagination={{
             currentPage,
             totalPages,
             perPage,
+            total: totalRegistros,
+            from,
+            to,
             onPageChange: setCurrentPage,
             onPerPageChange: setPerPage
           }}

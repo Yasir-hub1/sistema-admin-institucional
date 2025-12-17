@@ -35,6 +35,11 @@ const Docentes = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [perPage, setPerPage] = useState(10)
+  const [totalRegistros, setTotalRegistros] = useState(0)
+  const [from, setFrom] = useState(0)
+  const [to, setTo] = useState(0)
+  const [sortBy, setSortBy] = useState('apellido')
+  const [sortDirection, setSortDirection] = useState('asc')
   const [showModal, setShowModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
   const [showCredentialsModal, setShowCredentialsModal] = useState(false)
@@ -54,7 +59,7 @@ const Docentes = () => {
 
   useEffect(() => {
     fetchDocentes()
-  }, [currentPage, perPage, searchTerm, especializacionFilter])
+  }, [currentPage, perPage, searchTerm, especializacionFilter, sortBy, sortDirection])
 
   useEffect(() => {
     if (showModal && !editingDocente) {
@@ -69,24 +74,46 @@ const Docentes = () => {
         page: currentPage,
         per_page: perPage,
         search: searchTerm,
-        especializacion: especializacionFilter
+        especializacion: especializacionFilter,
+        sort_by: sortBy,
+        sort_direction: sortDirection
       })
       
       if (response.success && response.data) {
-        setDocentes(response.data.data || [])
+        const docentesData = response.data.data || []
+        setDocentes(docentesData)
         setTotalPages(response.data.last_page || 1)
+        setTotalRegistros(response.data.total || 0)
+        setFrom(response.data.from || 0)
+        setTo(response.data.to || 0)
         setStats({
           total: response.data.total || 0,
-          conGrupos: response.data.data?.filter(d => d.grupos_count > 0).length || 0
+          conGrupos: docentesData.filter(d => d.grupos_count > 0).length || 0
         })
       } else {
         toast.error(response.message || 'Error al cargar docentes')
+        setDocentes([])
+        setTotalPages(1)
+        setTotalRegistros(0)
+        setFrom(0)
+        setTo(0)
       }
     } catch (error) {
       toast.error('Error al cargar docentes')
+      setDocentes([])
+      setTotalPages(1)
+      setTotalRegistros(0)
+      setFrom(0)
+      setTo(0)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSort = (column, direction) => {
+    setSortBy(column)
+    setSortDirection(direction)
+    setCurrentPage(1)
   }
 
   const fetchSiguienteRegistro = async () => {
@@ -642,6 +669,19 @@ const Docentes = () => {
           emptyMessage="No se encontraron docentes"
           hover
           striped
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          pagination={{
+            currentPage,
+            totalPages,
+            perPage,
+            total: totalRegistros,
+            from,
+            to,
+            onPageChange: setCurrentPage,
+            onPerPageChange: setPerPage
+          }}
         />
       </Card>
 

@@ -19,6 +19,7 @@ import toast from 'react-hot-toast'
 const LoginDocente = () => {
   const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
+  const { setAuthData } = useAuth()
   
   const {
     register,
@@ -82,16 +83,22 @@ const LoginDocente = () => {
       const debeCambiar = result.data.debe_cambiar_password || result.data.user.debe_cambiar_password
       console.log('   → Debe cambiar contraseña:', debeCambiar)
       
-      // Guardar token SIEMPRE (necesario para la API)
-      localStorage.setItem('token', result.data.token)
-      console.log('   → Token guardado en localStorage')
+      // IMPORTANTE: Actualizar el estado del contexto de autenticación
+      // Esto evita que se necesite recargar la página
+      console.log('   → Actualizando contexto de autenticación...')
+      const authResult = setAuthData(result.data.user, result.data.token)
+      
+      if (!authResult.success) {
+        console.error('   ❌ Error al actualizar contexto:', authResult.error)
+        throw new Error('Error al establecer sesión')
+      }
+      
+      console.log('   ✅ Contexto actualizado correctamente')
       
       if (debeCambiar) {
         // Caso 1: Requiere cambio de contraseña
         console.log('   → Redirigiendo a cambiar contraseña...')
         
-        // toast.warning NO existe en react-hot-toast
-        // Usar toast con icon personalizado para simular warning
         toast('Debes cambiar tu contraseña antes de continuar', { 
           duration: 5000,
           icon: '⚠️',
@@ -102,26 +109,22 @@ const LoginDocente = () => {
           }
         })
         
-        // Pequeño delay para asegurar que el token se guardó
-        setTimeout(() => {
-          navigate('/docente/cambiar-password', { 
-            state: { 
-              requiereCambio: true,
-              mensaje: 'Por seguridad, debes cambiar tu contraseña temporal antes de continuar.',
-              fromLogin: true
-            },
-            replace: true  // Reemplazar en history para evitar volver atrás
-          })
-        }, 100)
+        // Redirigir inmediatamente (el contexto ya está actualizado)
+        navigate('/docente/cambiar-password', { 
+          state: { 
+            requiereCambio: true,
+            mensaje: 'Por seguridad, debes cambiar tu contraseña temporal antes de continuar.',
+            fromLogin: true
+          },
+          replace: true
+        })
       } else {
         // Caso 2: Login normal, ir al dashboard
         console.log('   → Redirigiendo al dashboard...')
-        toast.success(`Bienvenido, ${result.data.user.nombre} ${result.data.user.apellido}`.trim())
+        toast.success(`Bienvenido, ${result.data.user.nombre || ''} ${result.data.user.apellido || ''}`.trim())
         
-        // Pequeño delay para asegurar que el token se guardó
-        setTimeout(() => {
-          navigate('/docente/dashboard', { replace: true })
-        }, 100)
+        // Redirigir inmediatamente (el contexto ya está actualizado)
+        navigate('/docente/dashboard', { replace: true })
       }
       
     } catch (error) {

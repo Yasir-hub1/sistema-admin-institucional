@@ -29,6 +29,14 @@ const Inscripciones = () => {
   const [inscripciones, setInscripciones] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [perPage, setPerPage] = useState(10)
+  const [totalRegistros, setTotalRegistros] = useState(0)
+  const [from, setFrom] = useState(0)
+  const [to, setTo] = useState(0)
+  const [sortBy, setSortBy] = useState('fecha')
+  const [sortDirection, setSortDirection] = useState('desc')
   const [error, setError] = useState(null)
   const [showViewModal, setShowViewModal] = useState(false)
   const [showFiltersModal, setShowFiltersModal] = useState(false)
@@ -59,7 +67,7 @@ const Inscripciones = () => {
     }, 500) // Esperar 500ms después de que el usuario deje de escribir
 
     return () => clearTimeout(timeoutId)
-  }, [searchTerm, filtros])
+  }, [searchTerm, filtros, currentPage, perPage, sortBy, sortDirection])
 
   useEffect(() => {
     fetchEstadisticas()
@@ -93,7 +101,12 @@ const Inscripciones = () => {
     try {
       setLoading(true)
       setError(null)
-      const params = {}
+      const params = {
+        page: currentPage,
+        per_page: perPage,
+        sort_by: sortBy,
+        sort_direction: sortDirection
+      }
       if (searchTerm && searchTerm.trim() !== '') {
         params.search = searchTerm.trim()
       }
@@ -124,14 +137,28 @@ const Inscripciones = () => {
         }
         
         setInscripciones(inscripcionesData)
+        setTotalPages(data.last_page || 1)
+        setTotalRegistros(data.total || inscripcionesData.length)
+        setFrom(data.from || (inscripcionesData.length > 0 ? 1 : 0))
+        setTo(data.to || inscripcionesData.length)
       } else {
         setError('No se pudieron cargar las inscripciones')
         toast.error(response.message || 'Error al cargar inscripciones')
+        setInscripciones([])
+        setTotalPages(1)
+        setTotalRegistros(0)
+        setFrom(0)
+        setTo(0)
       }
     } catch (error) {
       console.error('Error cargando inscripciones:', error)
       setError('Error al cargar las inscripciones')
       toast.error('Error de conexión al cargar inscripciones')
+      setInscripciones([])
+      setTotalPages(1)
+      setTotalRegistros(0)
+      setFrom(0)
+      setTo(0)
     } finally {
       setLoading(false)
     }
@@ -167,8 +194,15 @@ const Inscripciones = () => {
     }
   }
 
+  const handleSort = (column, direction) => {
+    setSortBy(column)
+    setSortDirection(direction)
+    setCurrentPage(1)
+  }
+
   const handleAplicarFiltros = () => {
     setShowFiltersModal(false)
+    setCurrentPage(1)
     fetchInscripciones()
   }
 
@@ -487,7 +521,10 @@ const Inscripciones = () => {
             <Input
               placeholder="Buscar por estudiante, CI, programa..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                setCurrentPage(1)
+              }}
               className="pl-10"
             />
           </div>
@@ -519,6 +556,19 @@ const Inscripciones = () => {
           emptyMessage="No se encontraron inscripciones"
           hover
           striped
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          pagination={{
+            currentPage,
+            totalPages,
+            perPage,
+            total: totalRegistros,
+            from,
+            to,
+            onPageChange: setCurrentPage,
+            onPerPageChange: setPerPage
+          }}
         />
       </Card>
 

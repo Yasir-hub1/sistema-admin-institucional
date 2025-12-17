@@ -24,6 +24,11 @@ const RamasAcademicas = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [perPage, setPerPage] = useState(10)
+  const [totalRegistros, setTotalRegistros] = useState(0)
+  const [from, setFrom] = useState(0)
+  const [to, setTo] = useState(0)
+  const [sortBy, setSortBy] = useState('nombre')
+  const [sortDirection, setSortDirection] = useState('asc')
   const [showModal, setShowModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
   const [editingRama, setEditingRama] = useState(null)
@@ -37,7 +42,7 @@ const RamasAcademicas = () => {
 
   useEffect(() => {
     fetchRamas()
-  }, [currentPage, perPage, searchTerm])
+  }, [currentPage, perPage, searchTerm, sortBy, sortDirection])
 
   const fetchRamas = async () => {
     try {
@@ -45,21 +50,37 @@ const RamasAcademicas = () => {
       const response = await ramaAcademicaService.getRamasAcademicas({
         page: currentPage,
         per_page: perPage,
-        search: searchTerm
+        search: searchTerm,
+        sort_by: sortBy,
+        sort_direction: sortDirection
       })
       
       if (response.success && response.data) {
-        setRamas(response.data.data || [])
+        const ramasData = response.data.data || []
+        setRamas(ramasData)
         setTotalPages(response.data.last_page || 1)
+        setTotalRegistros(response.data.total || 0)
+        setFrom(response.data.from || 0)
+        setTo(response.data.to || 0)
         setStats({
           total: response.data.total || 0,
-          conProgramas: response.data.data?.filter(r => r.programas_count > 0).length || 0
+          conProgramas: ramasData.filter(r => r.programas_count > 0).length || 0
         })
       } else {
         toast.error(response.message || 'Error al cargar ramas académicas')
+        setRamas([])
+        setTotalPages(1)
+        setTotalRegistros(0)
+        setFrom(0)
+        setTo(0)
       }
     } catch (error) {
       toast.error('Error al cargar ramas académicas')
+      setRamas([])
+      setTotalPages(1)
+      setTotalRegistros(0)
+      setFrom(0)
+      setTo(0)
     } finally {
       setLoading(false)
     }
@@ -214,6 +235,12 @@ const RamasAcademicas = () => {
     setShowModal(true)
   }
 
+  const handleSort = (column, direction) => {
+    setSortBy(column)
+    setSortDirection(direction)
+    setCurrentPage(1)
+  }
+
   const columns = [
     { 
       key: 'nombre', 
@@ -330,11 +357,19 @@ const RamasAcademicas = () => {
           columns={columns}
           data={ramas}
           loading={loading}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          perPage={perPage}
-          onPerPageChange={setPerPage}
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          pagination={{
+            currentPage,
+            totalPages,
+            perPage,
+            total: totalRegistros,
+            from,
+            to,
+            onPageChange: setCurrentPage,
+            onPerPageChange: setPerPage
+          }}
         />
       </Card>
 

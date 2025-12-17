@@ -39,6 +39,11 @@ const Grupos = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [perPage, setPerPage] = useState(10)
+  const [totalRegistros, setTotalRegistros] = useState(0)
+  const [from, setFrom] = useState(0)
+  const [to, setTo] = useState(0)
+  const [sortBy, setSortBy] = useState('fecha_ini')
+  const [sortDirection, setSortDirection] = useState('desc')
   const [showModal, setShowModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
   const [editingGrupo, setEditingGrupo] = useState(null)
@@ -63,7 +68,7 @@ const Grupos = () => {
   // Cargar grupos cuando cambien los filtros o paginación
   useEffect(() => {
     fetchGrupos()
-  }, [currentPage, perPage, searchTerm, selectedPrograma, selectedModulo, selectedDocente])
+  }, [currentPage, perPage, searchTerm, selectedPrograma, selectedModulo, selectedDocente, sortBy, sortDirection])
 
   // Cargar módulos cuando se selecciona un programa
   useEffect(() => {
@@ -152,24 +157,40 @@ const Grupos = () => {
         search: searchTerm,
         programa_id: selectedPrograma || undefined,
         modulo_id: selectedModulo || undefined,
-        docente_id: selectedDocente || undefined
+        docente_id: selectedDocente || undefined,
+        sort_by: sortBy,
+        sort_direction: sortDirection
       })
       
       if (response.success && response.data) {
-        setGrupos(response.data.data || [])
+        const gruposData = response.data.data || []
+        setGrupos(gruposData)
         setTotalPages(response.data.last_page || 1)
+        setTotalRegistros(response.data.total || 0)
+        setFrom(response.data.from || 0)
+        setTo(response.data.to || 0)
         setStats({
           total: response.data.total || 0,
-          activos: response.data.data?.filter(g => {
+          activos: gruposData.filter(g => {
             if (!g.fecha_fin) return false
             return new Date(g.fecha_fin) >= new Date()
           }).length || 0
         })
       } else {
         toast.error(response.message || 'Error al cargar grupos')
+        setGrupos([])
+        setTotalPages(1)
+        setTotalRegistros(0)
+        setFrom(0)
+        setTo(0)
       }
     } catch (error) {
       toast.error('Error al cargar grupos')
+      setGrupos([])
+      setTotalPages(1)
+      setTotalRegistros(0)
+      setFrom(0)
+      setTo(0)
     } finally {
       setLoading(false)
     }
@@ -228,10 +249,30 @@ const Grupos = () => {
     try {
       setLoading(true)
       
+      // Función auxiliar para normalizar fechas y evitar desfase por zona horaria
+      const normalizarFecha = (fechaString) => {
+        if (!fechaString) return null
+        // Asegurar que la fecha se maneje como string sin conversión de zona horaria
+        // Si viene en formato YYYY-MM-DD, mantenerlo así
+        const fecha = fechaString.trim()
+        // Validar formato YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+          return fecha
+        }
+        // Si es un objeto Date, extraer solo la parte de fecha
+        if (fechaString instanceof Date) {
+          const year = fechaString.getFullYear()
+          const month = String(fechaString.getMonth() + 1).padStart(2, '0')
+          const day = String(fechaString.getDate()).padStart(2, '0')
+          return `${year}-${month}-${day}`
+        }
+        return fecha
+      }
+      
       // Preparar datos según el modelo
       const grupoData = {
-        fecha_ini: data.fecha_ini,
-        fecha_fin: data.fecha_fin,
+        fecha_ini: normalizarFecha(data.fecha_ini),
+        fecha_fin: normalizarFecha(data.fecha_fin),
         programa_id: parseInt(data.programa_id),
         modulo_id: parseInt(data.modulo_id),
         docente_id: parseInt(data.docente_id),
@@ -442,6 +483,12 @@ const Grupos = () => {
     setShowModal(true)
   }
 
+  const handleSort = (column, direction) => {
+    setSortBy(column)
+    setSortDirection(direction)
+    setCurrentPage(1)
+  }
+
   const columns = [
     { 
       key: 'programa', 
@@ -628,11 +675,19 @@ const Grupos = () => {
           columns={columns}
           data={grupos}
           loading={loading}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          perPage={perPage}
-          onPerPageChange={setPerPage}
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          pagination={{
+            currentPage,
+            totalPages,
+            perPage,
+            total: totalRegistros,
+            from,
+            to,
+            onPageChange: setCurrentPage,
+            onPerPageChange: setPerPage
+          }}
         />
       </Card>
 

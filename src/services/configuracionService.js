@@ -12,9 +12,12 @@ export const paisService = {
       const queryParams = {
         page: params.page || 1,
         per_page: params.per_page || PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
-        search: params.search || ''
+        search: params.search || '',
+        sort_by: params.sort_by || 'nombre_pais',
+        sort_direction: params.sort_direction || 'asc'
       }
 
+      // Limpiar parámetros vacíos
       if (!queryParams.search) delete queryParams.search
 
       const response = await get('/admin/paises', queryParams)
@@ -721,9 +724,12 @@ export const tipoConvenioService = {
       const queryParams = {
         page: params.page || 1,
         per_page: params.per_page || PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
-        search: params.search || ''
+        search: params.search || '',
+        sort_by: params.sort_by || 'nombre_tipo',
+        sort_direction: params.sort_direction || 'asc'
       }
 
+      // Limpiar parámetros vacíos
       if (!queryParams.search) delete queryParams.search
 
       const response = await get('/admin/tipo-convenios', queryParams)
@@ -732,6 +738,7 @@ export const tipoConvenioService = {
         return {
           success: true,
           data: response.data.data,
+          meta: response.data.meta,
           message: response.data.message
         }
       } else {
@@ -866,7 +873,9 @@ export const convenioService = {
         tipo_convenio_id: params.tipo_convenio_id || '',
         estado: params.estado !== undefined ? params.estado : '',
         fecha_desde: params.fecha_desde || '',
-        fecha_hasta: params.fecha_hasta || ''
+        fecha_hasta: params.fecha_hasta || '',
+        sort_by: params.sort_by || 'fecha_ini',
+        sort_direction: params.sort_direction || 'desc'
       }
 
       // Eliminar parámetros vacíos

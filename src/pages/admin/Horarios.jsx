@@ -26,6 +26,11 @@ const Horarios = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [perPage, setPerPage] = useState(10)
+  const [totalRegistros, setTotalRegistros] = useState(0)
+  const [from, setFrom] = useState(0)
+  const [to, setTo] = useState(0)
+  const [sortBy, setSortBy] = useState('dias')
+  const [sortDirection, setSortDirection] = useState('asc')
   const [showModal, setShowModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
   const [editingHorario, setEditingHorario] = useState(null)
@@ -56,7 +61,7 @@ const Horarios = () => {
 
   useEffect(() => {
     fetchHorarios()
-  }, [currentPage, perPage, searchTerm, diasFilter, turnoFilter])
+  }, [currentPage, perPage, searchTerm, diasFilter, turnoFilter, sortBy, sortDirection])
 
   const fetchHorarios = async () => {
     try {
@@ -66,21 +71,37 @@ const Horarios = () => {
         per_page: perPage,
         search: searchTerm,
         dias: diasFilter,
-        turno: turnoFilter
+        turno: turnoFilter,
+        sort_by: sortBy,
+        sort_direction: sortDirection
       })
       
       if (response.success && response.data) {
-        setHorarios(response.data.data || [])
+        const horariosData = response.data.data || []
+        setHorarios(horariosData)
         setTotalPages(response.data.last_page || 1)
+        setTotalRegistros(response.data.total || 0)
+        setFrom(response.data.from || 0)
+        setTo(response.data.to || 0)
         setStats({
           total: response.data.total || 0,
-          conGrupos: response.data.data?.filter(h => h.grupos_count > 0).length || 0
+          conGrupos: horariosData.filter(h => h.grupos_count > 0).length || 0
         })
       } else {
         toast.error(response.message || 'Error al cargar horarios')
+        setHorarios([])
+        setTotalPages(1)
+        setTotalRegistros(0)
+        setFrom(0)
+        setTo(0)
       }
     } catch (error) {
       toast.error('Error al cargar horarios')
+      setHorarios([])
+      setTotalPages(1)
+      setTotalRegistros(0)
+      setFrom(0)
+      setTo(0)
     } finally {
       setLoading(false)
     }
@@ -361,6 +382,12 @@ const Horarios = () => {
     setShowModal(true)
   }
 
+  const handleSort = (column, direction) => {
+    setSortBy(column)
+    setSortDirection(direction)
+    setCurrentPage(1)
+  }
+
   // Manejar cambio de selección de días
   const handleDiasChange = (e) => {
     const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
@@ -601,11 +628,19 @@ const Horarios = () => {
           columns={columns}
           data={horarios}
           loading={loading}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          perPage={perPage}
-          onPerPageChange={setPerPage}
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          pagination={{
+            currentPage,
+            totalPages,
+            perPage,
+            total: totalRegistros,
+            from,
+            to,
+            onPageChange: setCurrentPage,
+            onPerPageChange: setPerPage
+          }}
         />
       </Card>
 

@@ -12,7 +12,9 @@ export const ramaAcademicaService = {
       const queryParams = {
         page: params.page || 1,
         per_page: params.per_page || PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
-        search: params.search || ''
+        search: params.search || '',
+        sort_by: params.sort_by || 'nombre',
+        sort_direction: params.sort_direction || 'asc'
       }
 
       if (!queryParams.search) delete queryParams.search
@@ -154,7 +156,9 @@ export const versionService = {
         page: params.page || 1,
         per_page: params.per_page || PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
         search: params.search || '',
-        año: params.año || ''
+        año: params.año || '',
+        sort_by: params.sort_by || 'año',
+        sort_direction: params.sort_direction || 'desc'
       }
 
       if (!queryParams.search) delete queryParams.search
@@ -296,7 +300,9 @@ export const tipoProgramaService = {
       const queryParams = {
         page: params.page || 1,
         per_page: params.per_page || PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
-        search: params.search || ''
+        search: params.search || '',
+        sort_by: params.sort_by || 'nombre',
+        sort_direction: params.sort_direction || 'asc'
       }
 
       if (!queryParams.search) delete queryParams.search
@@ -437,7 +443,9 @@ export const moduloService = {
       const queryParams = {
         page: params.page || 1,
         per_page: params.per_page || PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
-        search: params.search || ''
+        search: params.search || '',
+        sort_by: params.sort_by || 'nombre',
+        sort_direction: params.sort_direction || 'asc'
       }
 
       if (!queryParams.search) delete queryParams.search
@@ -582,7 +590,9 @@ export const programaService = {
         rama_academica_id: params.rama_academica_id || '',
         tipo_programa_id: params.tipo_programa_id || '',
         version_id: params.version_id || '',
-        institucion_id: params.institucion_id || ''
+        institucion_id: params.institucion_id || '',
+        sort_by: params.sort_by || 'nombre',
+        sort_direction: params.sort_direction || 'asc'
       }
 
       // Eliminar parámetros vacíos

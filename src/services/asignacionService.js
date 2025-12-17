@@ -13,7 +13,9 @@ export const docenteService = {
         page: params.page || 1,
         per_page: params.per_page || PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
         search: params.search || '',
-        especializacion: params.especializacion || ''
+        especializacion: params.especializacion || '',
+        sort_by: params.sort_by || 'apellido',
+        sort_direction: params.sort_direction || 'asc'
       }
 
       if (!queryParams.search) delete queryParams.search

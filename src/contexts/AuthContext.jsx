@@ -399,6 +399,45 @@ export function AuthProvider({ children }) {
   }
 
   /**
+   * Establecer datos de autenticación manualmente (para login directo sin llamada adicional)
+   * Útil cuando el login devuelve todos los datos del usuario
+   * @param {object} userData - Datos del usuario
+   * @param {string} token - Token de autenticación
+   */
+  const setAuthData = (userData, token) => {
+    try {
+      console.log('📝 setAuthData: Estableciendo datos de autenticación', {
+        hasUser: !!userData,
+        hasToken: !!token,
+        userRole: userData?.rol
+      })
+      
+      // Normalizar el rol antes de guardar
+      if (userData && userData.rol) {
+        userData.rol = normalizeRole(userData.rol)
+      }
+      
+      // Guardar token en localStorage
+      if (token) {
+        localStorage.setItem('token', token)
+        console.log('   → Token guardado en localStorage')
+      }
+      
+      // Actualizar estado del contexto
+      dispatch({
+        type: 'AUTH_SUCCESS',
+        payload: { user: userData, token }
+      })
+      
+      console.log('   ✅ Datos de autenticación establecidos correctamente')
+      return { success: true }
+    } catch (error) {
+      console.error('   ❌ Error al establecer datos de autenticación:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  /**
    * Verifica si el usuario tiene un rol específico
    * @param {string} role - Rol a verificar (puede ser en mayúsculas o minúsculas)
    * @returns {boolean}
@@ -487,6 +526,8 @@ export function AuthProvider({ children }) {
     refreshToken,
     updateProfile,
     clearError,
+    setAuthData,
+    checkAuth,
     // Métodos de verificación de roles (renombrados para evitar conflictos)
     hasRole: checkRole,
     hasAnyRole: checkAnyRole,

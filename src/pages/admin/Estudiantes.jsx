@@ -34,6 +34,14 @@ const Estudiantes = () => {
   const [estudiantes, setEstudiantes] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [perPage, setPerPage] = useState(10)
+  const [totalRegistros, setTotalRegistros] = useState(0)
+  const [from, setFrom] = useState(0)
+  const [to, setTo] = useState(0)
+  const [sortBy, setSortBy] = useState('registro_estudiante')
+  const [sortDirection, setSortDirection] = useState('desc')
   const [error, setError] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
@@ -57,12 +65,17 @@ const Estudiantes = () => {
 
   useEffect(() => {
     fetchEstudiantes()
-  }, [searchTerm, filtrosAvanzados])
+  }, [searchTerm, filtrosAvanzados, currentPage, perPage, sortBy, sortDirection])
 
   const fetchEstudiantes = async () => {
     try {
       setLoading(true)
-      const params = {}
+      const params = {
+        page: currentPage,
+        per_page: perPage,
+        sort_by: sortBy,
+        sort_direction: sortDirection
+      }
       
       if (searchTerm) {
         params.search = searchTerm
@@ -93,21 +106,35 @@ const Estudiantes = () => {
         }
         
         setEstudiantes(estudiantesData)
+        setTotalPages(data.last_page || 1)
+        setTotalRegistros(data.total || estudiantesData.length)
+        setFrom(data.from || (estudiantesData.length > 0 ? 1 : 0))
+        setTo(data.to || estudiantesData.length)
         
         // Calcular estadísticas
         setStats({
-          total: estudiantesData.length,
+          total: data.total || estudiantesData.length,
           activos: estudiantesData.filter(e => e.activo === true || e.estado_id === 4).length,
           inactivos: estudiantesData.filter(e => e.activo !== true && e.estado_id !== 4).length
         })
       } else {
         setError('No se pudieron cargar los estudiantes')
         toast.error(response.message || 'Error al cargar estudiantes')
+        setEstudiantes([])
+        setTotalPages(1)
+        setTotalRegistros(0)
+        setFrom(0)
+        setTo(0)
       }
     } catch (error) {
       console.error('Error cargando estudiantes:', error)
       setError('Error al cargar los estudiantes')
       toast.error('Error de conexión al cargar estudiantes')
+      setEstudiantes([])
+      setTotalPages(1)
+      setTotalRegistros(0)
+      setFrom(0)
+      setTo(0)
     } finally {
       setLoading(false)
     }
@@ -357,6 +384,12 @@ const Estudiantes = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSort = (column, direction) => {
+    setSortBy(column)
+    setSortDirection(direction)
+    setCurrentPage(1)
   }
 
   const handleExport = async () => {
@@ -724,7 +757,10 @@ const Estudiantes = () => {
             <Input
               placeholder="Buscar por CI, nombre, apellido o registro..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                setCurrentPage(1)
+              }}
               className="pl-10"
             />
           </div>
@@ -844,6 +880,19 @@ const Estudiantes = () => {
           emptyMessage="No se encontraron estudiantes"
           hover
           striped
+          onSort={handleSort}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          pagination={{
+            currentPage,
+            totalPages,
+            perPage,
+            total: totalRegistros,
+            from,
+            to,
+            onPageChange: setCurrentPage,
+            onPerPageChange: setPerPage
+          }}
         />
       </Card>
 
