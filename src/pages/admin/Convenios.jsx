@@ -23,40 +23,58 @@ import { convenioService, tipoConvenioService, institucionService } from '../../
 
 /**
  * Parsea una fecha evitando problemas de zona horaria
- * Cuando Laravel envía una fecha como "2024-01-15" (solo fecha), 
+ * Cuando Laravel envía una fecha como "2024-01-15" o "2024-01-15T00:00:00", 
  * JavaScript la interpreta como UTC medianoche, causando que se muestre un día anterior.
- * Esta función parsea la fecha manualmente para evitar este problema.
+ * Esta función SIEMPRE extrae solo la parte de la fecha (YYYY-MM-DD) y la parsea como fecha local.
  */
 const parseDateLocal = (dateString) => {
   if (!dateString) return null
   
   try {
-    // Si la fecha viene en formato "YYYY-MM-DD" o "YYYY-MM-DD HH:mm:ss"
-    // Parseamos manualmente para evitar problemas de zona horaria
+    let dateOnly = null
+    
+    // Extraer solo la parte de la fecha (YYYY-MM-DD) sin importar el formato
     if (typeof dateString === 'string') {
-      // Si es solo fecha (YYYY-MM-DD), parseamos manualmente
+      // Si es solo fecha (YYYY-MM-DD)
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        const [year, month, day] = dateString.split('-').map(Number)
-        return new Date(year, month - 1, day)
+        dateOnly = dateString
       }
-      
-      // Si incluye hora, intentamos parsear normalmente pero ajustamos
-      if (dateString.includes('T') || dateString.includes(' ')) {
-        // Si es una fecha ISO sin zona horaria, extraemos solo la fecha
-        if (dateString.includes('T') && !dateString.includes('Z') && !dateString.includes('+')) {
-          const dateOnly = dateString.split('T')[0]
-          const [year, month, day] = dateOnly.split('-').map(Number)
-          return new Date(year, month - 1, day)
+      // Si incluye hora o timestamp (YYYY-MM-DD HH:mm:ss o YYYY-MM-DDTHH:mm:ss)
+      else if (dateString.includes('T')) {
+        dateOnly = dateString.split('T')[0]
+      }
+      // Si incluye espacio (YYYY-MM-DD HH:mm:ss)
+      else if (dateString.includes(' ')) {
+        dateOnly = dateString.split(' ')[0]
+      }
+      // Intentar extraer fecha de cualquier formato
+      else {
+        const match = dateString.match(/^(\d{4}-\d{2}-\d{2})/)
+        if (match) {
+          dateOnly = match[1]
         }
-        // Si tiene zona horaria, parseamos normalmente
-        return new Date(dateString)
       }
     }
     
-    // Fallback: intentar parsear normalmente
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) return null
-    return date
+    // Si no pudimos extraer la fecha, intentar parsear normalmente
+    if (!dateOnly) {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return null
+      // Si el parseo fue exitoso, extraer solo la fecha para evitar problemas de zona horaria
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      dateOnly = `${year}-${month}-${day}`
+    }
+    
+    // Parsear la fecha manualmente como fecha local (sin zona horaria)
+    if (dateOnly && /^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+      const [year, month, day] = dateOnly.split('-').map(Number)
+      // Crear fecha en zona horaria local (no UTC)
+      return new Date(year, month - 1, day)
+    }
+    
+    return null
   } catch (error) {
     console.error('Error parseando fecha:', error, dateString)
     return null
