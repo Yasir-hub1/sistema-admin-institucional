@@ -21,6 +21,62 @@ import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { convenioService, tipoConvenioService, institucionService } from '../../services/configuracionService'
 
+/**
+ * Parsea una fecha evitando problemas de zona horaria
+ * Cuando Laravel envía una fecha como "2024-01-15" (solo fecha), 
+ * JavaScript la interpreta como UTC medianoche, causando que se muestre un día anterior.
+ * Esta función parsea la fecha manualmente para evitar este problema.
+ */
+const parseDateLocal = (dateString) => {
+  if (!dateString) return null
+  
+  try {
+    // Si la fecha viene en formato "YYYY-MM-DD" o "YYYY-MM-DD HH:mm:ss"
+    // Parseamos manualmente para evitar problemas de zona horaria
+    if (typeof dateString === 'string') {
+      // Si es solo fecha (YYYY-MM-DD), parseamos manualmente
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number)
+        return new Date(year, month - 1, day)
+      }
+      
+      // Si incluye hora, intentamos parsear normalmente pero ajustamos
+      if (dateString.includes('T') || dateString.includes(' ')) {
+        // Si es una fecha ISO sin zona horaria, extraemos solo la fecha
+        if (dateString.includes('T') && !dateString.includes('Z') && !dateString.includes('+')) {
+          const dateOnly = dateString.split('T')[0]
+          const [year, month, day] = dateOnly.split('-').map(Number)
+          return new Date(year, month - 1, day)
+        }
+        // Si tiene zona horaria, parseamos normalmente
+        return new Date(dateString)
+      }
+    }
+    
+    // Fallback: intentar parsear normalmente
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return null
+    return date
+  } catch (error) {
+    console.error('Error parseando fecha:', error, dateString)
+    return null
+  }
+}
+
+/**
+ * Formatea una fecha evitando problemas de zona horaria
+ */
+const formatDateLocal = (dateString) => {
+  const date = parseDateLocal(dateString)
+  if (!date) return 'N/A'
+  
+  return date.toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+
 const Convenios = () => {
   const [convenios, setConvenios] = useState([])
   const [tiposConvenio, setTiposConvenio] = useState([])
@@ -109,8 +165,13 @@ const Convenios = () => {
         setStats({
           total: response.data.total || 0,
           activos: conveniosData.filter(c => {
-            const fechaFin = new Date(c.fecha_fin)
-            return fechaFin >= new Date()
+            const fechaFin = parseDateLocal(c.fecha_fin)
+            if (!fechaFin) return false
+            const hoy = new Date()
+            hoy.setHours(0, 0, 0, 0) // Normalizar a inicio del día
+            const fechaFinNormalizada = new Date(fechaFin)
+            fechaFinNormalizada.setHours(0, 0, 0, 0)
+            return fechaFinNormalizada >= hoy
           }).length || 0
         })
       } else {
@@ -522,26 +583,33 @@ const Convenios = () => {
     { 
       key: 'fecha_ini', 
       label: 'Fecha Inicio',
-      render: (row) => {
-        const fecha = row.fecha_ini
-        return fecha ? new Date(fecha).toLocaleDateString('es-ES') : 'N/A'
-      }
+      render: (row) => formatDateLocal(row.fecha_ini)
     },
     { 
       key: 'fecha_fin', 
       label: 'Fecha Fin',
-      render: (row) => {
-        const fecha = row.fecha_fin
-        return fecha ? new Date(fecha).toLocaleDateString('es-ES') : 'N/A'
-      }
+      render: (row) => formatDateLocal(row.fecha_fin)
     },
     {
       key: 'estado',
       label: 'Estado',
       render: (row) => {
-        const fechaFin = new Date(row.fecha_fin)
+        const fechaFin = parseDateLocal(row.fecha_fin)
+        if (!fechaFin) {
+          return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+              <XCircle className="h-3 w-3 mr-1" />
+              Sin fecha
+            </span>
+          )
+        }
+        
         const hoy = new Date()
-        if (fechaFin >= hoy) {
+        hoy.setHours(0, 0, 0, 0) // Normalizar a inicio del día
+        const fechaFinNormalizada = new Date(fechaFin)
+        fechaFinNormalizada.setHours(0, 0, 0, 0)
+        
+        if (fechaFinNormalizada >= hoy) {
           return (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-100 text-success-800">
               <CheckCircle className="h-3 w-3 mr-1" />
@@ -1084,7 +1152,7 @@ const Convenios = () => {
                   Fecha Inicio
                 </label>
                 <p className="text-gray-700 dark:text-gray-300">
-                  {viewingConvenio.fecha_ini ? new Date(viewingConvenio.fecha_ini).toLocaleDateString('es-ES') : 'N/A'}
+                  {formatDateLocal(viewingConvenio.fecha_ini)}
                 </p>
               </div>
               <div>
@@ -1092,7 +1160,7 @@ const Convenios = () => {
                   Fecha Fin
                 </label>
                 <p className="text-gray-700 dark:text-gray-300">
-                  {viewingConvenio.fecha_fin ? new Date(viewingConvenio.fecha_fin).toLocaleDateString('es-ES') : 'N/A'}
+                  {formatDateLocal(viewingConvenio.fecha_fin)}
                 </p>
               </div>
               <div>
@@ -1100,7 +1168,7 @@ const Convenios = () => {
                   Fecha de Firma
                 </label>
                 <p className="text-gray-700 dark:text-gray-300">
-                  {viewingConvenio.fecha_firma ? new Date(viewingConvenio.fecha_firma).toLocaleDateString('es-ES') : 'N/A'}
+                  {formatDateLocal(viewingConvenio.fecha_firma)}
                 </p>
               </div>
             </div>

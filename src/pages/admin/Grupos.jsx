@@ -22,6 +22,94 @@ import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { grupoService } from '../../services/grupoService'
 
+/**
+ * Parsea una fecha evitando problemas de zona horaria
+ * Cuando Laravel envía una fecha como "2025-12-31" o "2025-12-31T00:00:00", 
+ * JavaScript la interpreta como UTC medianoche, causando que se muestre un día anterior.
+ * Esta función SIEMPRE extrae solo la parte de la fecha (YYYY-MM-DD) y la parsea como fecha local.
+ */
+const parseDateLocal = (dateString) => {
+  if (!dateString) return null
+  
+  try {
+    let dateOnly = null
+    
+    // Extraer solo la parte de la fecha (YYYY-MM-DD) sin importar el formato
+    if (typeof dateString === 'string') {
+      // Si es solo fecha (YYYY-MM-DD)
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        dateOnly = dateString
+      }
+      // Si incluye hora o timestamp (YYYY-MM-DD HH:mm:ss o YYYY-MM-DDTHH:mm:ss)
+      else if (dateString.includes('T')) {
+        dateOnly = dateString.split('T')[0]
+      }
+      // Si incluye espacio (YYYY-MM-DD HH:mm:ss)
+      else if (dateString.includes(' ')) {
+        dateOnly = dateString.split(' ')[0]
+      }
+      // Intentar extraer fecha de cualquier formato
+      else {
+        const match = dateString.match(/^(\d{4}-\d{2}-\d{2})/)
+        if (match) {
+          dateOnly = match[1]
+        }
+      }
+    }
+    
+    // Si no pudimos extraer la fecha, intentar parsear normalmente
+    if (!dateOnly) {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return null
+      // Si el parseo fue exitoso, extraer solo la fecha para evitar problemas de zona horaria
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      dateOnly = `${year}-${month}-${day}`
+    }
+    
+    // Parsear la fecha manualmente como fecha local (sin zona horaria)
+    if (dateOnly && /^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+      const [year, month, day] = dateOnly.split('-').map(Number)
+      // Crear fecha en zona horaria local (no UTC)
+      return new Date(year, month - 1, day)
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error parseando fecha:', error, dateString)
+    return null
+  }
+}
+
+/**
+ * Formatea una fecha evitando problemas de zona horaria
+ */
+const formatDateLocal = (dateString) => {
+  const date = parseDateLocal(dateString)
+  if (!date) return 'N/A'
+  
+  return date.toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+
+/**
+ * Formatea una fecha con formato largo (mes en texto)
+ */
+const formatDateLocalLong = (dateString) => {
+  const date = parseDateLocal(dateString)
+  if (!date) return 'N/A'
+  
+  return date.toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
 const Grupos = () => {
   const [grupos, setGrupos] = useState([])
   const [datosFormulario, setDatosFormulario] = useState({
@@ -172,8 +260,13 @@ const Grupos = () => {
         setStats({
           total: response.data.total || 0,
           activos: gruposData.filter(g => {
-            if (!g.fecha_fin) return false
-            return new Date(g.fecha_fin) >= new Date()
+            const fechaFin = parseDateLocal(g.fecha_fin)
+            if (!fechaFin) return false
+            const hoy = new Date()
+            hoy.setHours(0, 0, 0, 0) // Normalizar a inicio del día
+            const fechaFinNormalizada = new Date(fechaFin)
+            fechaFinNormalizada.setHours(0, 0, 0, 0)
+            return fechaFinNormalizada >= hoy
           }).length || 0
         })
       } else {
@@ -513,24 +606,12 @@ const Grupos = () => {
     { 
       key: 'fecha_ini', 
       label: 'Fecha Inicio',
-      render: (row) => {
-        if (row.fecha_ini) {
-          const fecha = new Date(row.fecha_ini)
-          return fecha.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' })
-        }
-        return 'N/A'
-      }
+      render: (row) => formatDateLocal(row.fecha_ini)
     },
     { 
       key: 'fecha_fin', 
       label: 'Fecha Fin',
-      render: (row) => {
-        if (row.fecha_fin) {
-          const fecha = new Date(row.fecha_fin)
-          return fecha.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' })
-        }
-        return 'N/A'
-      }
+      render: (row) => formatDateLocal(row.fecha_fin)
     },
     { 
       key: 'estudiantes_count', 
@@ -969,13 +1050,7 @@ const Grupos = () => {
                   Fecha Inicio
                 </label>
                 <p className="text-gray-700 dark:text-gray-300">
-                  {viewingGrupo.fecha_ini 
-                    ? new Date(viewingGrupo.fecha_ini).toLocaleDateString('es-ES', { 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })
-                    : 'N/A'}
+                  {formatDateLocalLong(viewingGrupo.fecha_ini)}
                 </p>
               </div>
               <div>
@@ -983,13 +1058,7 @@ const Grupos = () => {
                   Fecha Fin
                 </label>
                 <p className="text-gray-700 dark:text-gray-300">
-                  {viewingGrupo.fecha_fin 
-                    ? new Date(viewingGrupo.fecha_fin).toLocaleDateString('es-ES', { 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })
-                    : 'N/A'}
+                  {formatDateLocalLong(viewingGrupo.fecha_fin)}
                 </p>
               </div>
             </div>

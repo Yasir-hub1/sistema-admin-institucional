@@ -10,6 +10,109 @@ import toast from 'react-hot-toast'
 import { descuentoService } from '../../services/pagoService'
 import { programaService } from '../../services/planificacionService'
 
+/**
+ * Parsea una fecha evitando problemas de zona horaria
+ * Cuando Laravel envía una fecha como "2025-12-31" o "2025-12-31T00:00:00", 
+ * JavaScript la interpreta como UTC medianoche, causando que se muestre un día anterior.
+ * Esta función SIEMPRE extrae solo la parte de la fecha (YYYY-MM-DD) y la parsea como fecha local.
+ */
+const parseDateLocal = (dateString) => {
+  if (!dateString) return null
+  
+  try {
+    let dateOnly = null
+    
+    // Extraer solo la parte de la fecha (YYYY-MM-DD) sin importar el formato
+    if (typeof dateString === 'string') {
+      // Si es solo fecha (YYYY-MM-DD)
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        dateOnly = dateString
+      }
+      // Si incluye hora o timestamp (YYYY-MM-DD HH:mm:ss o YYYY-MM-DDTHH:mm:ss)
+      else if (dateString.includes('T')) {
+        dateOnly = dateString.split('T')[0]
+      }
+      // Si incluye espacio (YYYY-MM-DD HH:mm:ss)
+      else if (dateString.includes(' ')) {
+        dateOnly = dateString.split(' ')[0]
+      }
+      // Intentar extraer fecha de cualquier formato
+      else {
+        const match = dateString.match(/^(\d{4}-\d{2}-\d{2})/)
+        if (match) {
+          dateOnly = match[1]
+        }
+      }
+    }
+    
+    // Si no pudimos extraer la fecha, intentar parsear normalmente
+    if (!dateOnly) {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return null
+      // Si el parseo fue exitoso, extraer solo la fecha para evitar problemas de zona horaria
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      dateOnly = `${year}-${month}-${day}`
+    }
+    
+    // Parsear la fecha manualmente como fecha local (sin zona horaria)
+    if (dateOnly && /^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+      const [year, month, day] = dateOnly.split('-').map(Number)
+      // Crear fecha en zona horaria local (no UTC)
+      return new Date(year, month - 1, day)
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error parseando fecha:', error, dateString)
+    return null
+  }
+}
+
+/**
+ * Formatea una fecha evitando problemas de zona horaria
+ */
+const formatDateLocal = (dateString) => {
+  const date = parseDateLocal(dateString)
+  if (!date) return '-'
+  
+  return date.toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+
+/**
+ * Formatea una fecha con formato largo (mes en texto)
+ */
+const formatDateLocalLong = (dateString) => {
+  const date = parseDateLocal(dateString)
+  if (!date) return '-'
+  
+  return date.toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+/**
+ * Convierte una fecha a formato YYYY-MM-DD para inputs type="date"
+ */
+const formatDateForInput = (dateString) => {
+  if (!dateString) return ''
+  
+  const date = parseDateLocal(dateString)
+  if (!date) return ''
+  
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const Descuentos = () => {
   const [descuentos, setDescuentos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -111,8 +214,8 @@ const Descuentos = () => {
       programa_id: descuento.programa_id || '',
       nombre: descuento.nombre,
       descuento: descuento.descuento,
-      fecha_inicio: descuento.fecha_inicio || '',
-      fecha_fin: descuento.fecha_fin || ''
+      fecha_inicio: formatDateForInput(descuento.fecha_inicio),
+      fecha_fin: formatDateForInput(descuento.fecha_fin)
     })
     setShowModal(true)
   }
@@ -223,10 +326,10 @@ const Descuentos = () => {
       render: (row) => (
         <div className="text-sm">
           <div className="text-gray-900 dark:text-gray-100">
-            {row.fecha_inicio ? new Date(row.fecha_inicio).toLocaleDateString('es-ES') : '-'}
+            {formatDateLocal(row.fecha_inicio)}
           </div>
           <div className="text-gray-500">
-            hasta {row.fecha_fin ? new Date(row.fecha_fin).toLocaleDateString('es-ES') : '-'}
+            hasta {formatDateLocal(row.fecha_fin)}
           </div>
         </div>
       )
@@ -460,7 +563,7 @@ const Descuentos = () => {
                   Fecha de Inicio
                 </label>
                 <p className="text-gray-900 dark:text-gray-100">
-                  {viewingDescuento.fecha_inicio ? new Date(viewingDescuento.fecha_inicio).toLocaleDateString('es-ES') : '-'}
+                  {formatDateLocalLong(viewingDescuento.fecha_inicio)}
                 </p>
               </div>
               <div>
@@ -468,7 +571,7 @@ const Descuentos = () => {
                   Fecha de Fin
                 </label>
                 <p className="text-gray-900 dark:text-gray-100">
-                  {viewingDescuento.fecha_fin ? new Date(viewingDescuento.fecha_fin).toLocaleDateString('es-ES') : '-'}
+                  {formatDateLocalLong(viewingDescuento.fecha_fin)}
                 </p>
               </div>
               <div>
@@ -476,17 +579,33 @@ const Descuentos = () => {
                   Estado
                 </label>
                 <p className={`font-semibold ${
-                  viewingDescuento.fecha_inicio && viewingDescuento.fecha_fin &&
-                  new Date() >= new Date(viewingDescuento.fecha_inicio) &&
-                  new Date() <= new Date(viewingDescuento.fecha_fin)
+                  (() => {
+                    const fechaInicio = parseDateLocal(viewingDescuento.fecha_inicio)
+                    const fechaFin = parseDateLocal(viewingDescuento.fecha_fin)
+                    if (!fechaInicio || !fechaFin) return false
+                    const hoy = new Date()
+                    hoy.setHours(0, 0, 0, 0)
+                    const inicio = new Date(fechaInicio)
+                    inicio.setHours(0, 0, 0, 0)
+                    const fin = new Date(fechaFin)
+                    fin.setHours(0, 0, 0, 0)
+                    return hoy >= inicio && hoy <= fin
+                  })()
                     ? 'text-green-600 dark:text-green-400'
                     : 'text-gray-500'
                 }`}>
-                  {viewingDescuento.fecha_inicio && viewingDescuento.fecha_fin &&
-                  new Date() >= new Date(viewingDescuento.fecha_inicio) &&
-                  new Date() <= new Date(viewingDescuento.fecha_fin)
-                    ? 'Vigente'
-                    : 'No vigente'}
+                  {(() => {
+                    const fechaInicio = parseDateLocal(viewingDescuento.fecha_inicio)
+                    const fechaFin = parseDateLocal(viewingDescuento.fecha_fin)
+                    if (!fechaInicio || !fechaFin) return 'No vigente'
+                    const hoy = new Date()
+                    hoy.setHours(0, 0, 0, 0)
+                    const inicio = new Date(fechaInicio)
+                    inicio.setHours(0, 0, 0, 0)
+                    const fin = new Date(fechaFin)
+                    fin.setHours(0, 0, 0, 0)
+                    return hoy >= inicio && hoy <= fin ? 'Vigente' : 'No vigente'
+                  })()}
                 </p>
               </div>
             </div>
